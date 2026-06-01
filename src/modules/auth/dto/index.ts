@@ -3,3 +3,5 @@ export { LoginPassengerDto } from './login-passenger.dto';
 export { LoginDriverDto } from './login-driver.dto';
 export { RefreshTokenDto } from './refresh-token.dto';
 export { UpdateFcmTokenDto } from './update-fcm-token.dto';
+export { RegisterCompanyDto } from './register-company.dto';
+export { LoginCompanyDto } from './login-company.dto';

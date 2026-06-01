@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
@@ -13,9 +18,12 @@ import { TapDto } from './dto/tap.dto';
 @Injectable()
 export class JourneyService {
   constructor(
-    @InjectModel(Journey.name) private readonly journeyModel: Model<JourneyDocument>,
-    @InjectModel(Passenger.name) private readonly passengerModel: Model<PassengerDocument>,
-    @InjectModel(Driver.name) private readonly driverModel: Model<DriverDocument>,
+    @InjectModel(Journey.name)
+    private readonly journeyModel: Model<JourneyDocument>,
+    @InjectModel(Passenger.name)
+    private readonly passengerModel: Model<PassengerDocument>,
+    @InjectModel(Driver.name)
+    private readonly driverModel: Model<DriverDocument>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly walletLedgerService: WalletLedgerService,
@@ -44,7 +52,9 @@ export class JourneyService {
       throw new NotFoundException('Driver not found');
     }
     if (!driver.isOnShift) {
-      throw new ForbiddenException('Driver is not currently on an active shift');
+      throw new ForbiddenException(
+        'Driver is not currently on an active shift',
+      );
     }
 
     // 2. Extract passenger ID based on mode
@@ -52,16 +62,22 @@ export class JourneyService {
     if (tapDto.mode === 'QR') {
       try {
         const secret = this.configService.get<string>('QR_JWT_SECRET');
-        const payload = await this.jwtService.verifyAsync(tapDto.token, { secret });
+        const payload = await this.jwtService.verifyAsync(tapDto.token, {
+          secret,
+        });
         passengerId = payload.sub;
-      } catch (err) {
+      } catch {
         throw new BadRequestException('Invalid or expired QR ticket');
       }
     } else {
       // NFC Mode
-      const passenger = await this.passengerModel.findOne({ nfcUid: tapDto.token });
+      const passenger = await this.passengerModel.findOne({
+        nfcUid: tapDto.token,
+      });
       if (!passenger) {
-        throw new NotFoundException('NFC card is not registered to any passenger');
+        throw new NotFoundException(
+          'NFC card is not registered to any passenger',
+        );
       }
       passengerId = (passenger as any)._id.toString();
     }
@@ -77,22 +93,30 @@ export class JourneyService {
       const journey = new this.journeyModel({
         passengerId: new Types.ObjectId(passengerId),
         driverId: new Types.ObjectId(driverId),
-        routeId: driver.currentBusRegistration ? `Bus ${driver.currentBusRegistration}` : 'Route 120',
-        startLocation: { type: 'Point', coordinates: [tapDto.longitude, tapDto.latitude] },
+        routeId: driver.currentBusRegistration
+          ? `Bus ${driver.currentBusRegistration}`
+          : 'Route 120',
+        startLocation: {
+          type: 'Point',
+          coordinates: [tapDto.longitude, tapDto.latitude],
+        },
         startTimestamp: new Date(),
         status: 'IN_PROGRESS',
       });
       await journey.save();
 
-      const notification = await this.notificationsService.notifyPassenger(passengerId, {
-        title: 'Journey started',
-        body: `Boarded ${journey.routeId}`,
-        data: {
-          event: 'TAP_ON',
-          journeyId: journey._id.toString(),
-          routeId: journey.routeId ?? '',
+      const notification = await this.notificationsService.notifyPassenger(
+        passengerId,
+        {
+          title: 'Journey started',
+          body: `Boarded ${journey.routeId}`,
+          data: {
+            event: 'TAP_ON',
+            journeyId: journey._id.toString(),
+            routeId: journey.routeId ?? '',
+          },
         },
-      });
+      );
 
       return {
         event: 'TAP_ON',
@@ -107,8 +131,13 @@ export class JourneyService {
     } else {
       // --- TAP OFF ---
       const [startLng, startLat] = activeJourney.startLocation.coordinates;
-      const distanceKm = this.calculateHaversineDistance(startLat, startLng, tapDto.latitude, tapDto.longitude);
-      
+      const distanceKm = this.calculateHaversineDistance(
+        startLat,
+        startLng,
+        tapDto.latitude,
+        tapDto.longitude,
+      );
+
       // Calculate fare: base of 50.00 LKR + 10.00 LKR per km
       const fare = 50.0 + distanceKm * 10.0;
 
@@ -125,10 +154,15 @@ export class JourneyService {
           session,
         );
 
-        activeJourney.endLocation = { type: 'Point', coordinates: [tapDto.longitude, tapDto.latitude] };
+        activeJourney.endLocation = {
+          type: 'Point',
+          coordinates: [tapDto.longitude, tapDto.latitude],
+        };
         activeJourney.endTimestamp = new Date();
         activeJourney.distanceKm = parseFloat(distanceKm.toFixed(2));
-        activeJourney.fareCalculated = Types.Decimal128.fromString(fare.toFixed(2)) as any;
+        activeJourney.fareCalculated = Types.Decimal128.fromString(
+          fare.toFixed(2),
+        );
         activeJourney.status = 'COMPLETED';
         activeJourney.paymentTransactionId = tx._id;
         activeJourney.calculationMethod = 'ELAPSED_TIME_FALLBACK';
@@ -136,16 +170,19 @@ export class JourneyService {
         await activeJourney.save({ session });
         await session.commitTransaction();
 
-        const notification = await this.notificationsService.notifyPassenger(passengerId, {
-          title: 'Journey completed',
-          body: `Fare LKR ${fare.toFixed(2)} for ${distanceKm.toFixed(2)} km`,
-          data: {
-            event: 'TAP_OFF',
-            journeyId: activeJourney._id.toString(),
-            fare: fare.toFixed(2),
-            distanceKm: distanceKm.toFixed(2),
+        const notification = await this.notificationsService.notifyPassenger(
+          passengerId,
+          {
+            title: 'Journey completed',
+            body: `Fare LKR ${fare.toFixed(2)} for ${distanceKm.toFixed(2)} km`,
+            data: {
+              event: 'TAP_OFF',
+              journeyId: activeJourney._id.toString(),
+              fare: fare.toFixed(2),
+              distanceKm: distanceKm.toFixed(2),
+            },
           },
-        });
+        );
 
         return {
           event: 'TAP_OFF',
@@ -164,7 +201,7 @@ export class JourneyService {
         await session.abortTransaction();
         throw err;
       } finally {
-        session.endSession();
+        await session.endSession();
       }
     }
   }
@@ -192,13 +229,21 @@ export class JourneyService {
   /**
    * Helper: Calculates distance using Haversine formula
    */
-  private calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private calculateHaversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const R = 6371; // Earth radius in km
     const dLat = this.deg2rad(lat2 - lat1);
     const dLon = this.deg2rad(lon2 - lon1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos(this.deg2rad(lat1)) *
+        Math.cos(this.deg2rad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }

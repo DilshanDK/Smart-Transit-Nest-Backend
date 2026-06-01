@@ -6,14 +6,16 @@ import { MongooseModule } from '@nestjs/mongoose';
   imports: [
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
+      useFactory: (configService: ConfigService) => {
         const useProd = configService.get<string>('USE_PROD_DB') === 'true';
-        const uri = useProd 
-          ? configService.get<string>('MONGODB_URI_PROD') 
+        const uri = useProd
+          ? configService.get<string>('MONGODB_URI_PROD')
           : configService.get<string>('MONGODB_URI_DEV');
-        
-        console.log(`🔌 Connecting to MongoDB: ${useProd ? 'PRODUCTION' : 'DEVELOPMENT'} database`);
-        
+
+        console.log(
+          `🔌 Connecting to MongoDB: ${useProd ? 'PRODUCTION' : 'DEVELOPMENT'} database`,
+        );
+
         return { uri };
       },
       inject: [ConfigService],

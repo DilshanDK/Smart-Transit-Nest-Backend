@@ -1,0 +1,44 @@
+name: Deploy NestJS Backend to AWS VPS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'smarttransit-nest-backend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Copy Files to VPS via SSH/SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "smarttransit-nest-backend/*"
+          target: "/home/ubuntu/Projects/smart-transit/nest-backend"
+          strip_components: 1
+
+      - name: Execute Remote SSH Commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/Projects/smart-transit/nest-backend
+            
+            # Write backend_env secret to .env.production
+            echo "${{ secrets.BACKEND_ENV }}" > .env.production
+            
+            # Build and start container in production mode
+            docker compose -f docker-compose.yml up -d --build
+            
+            # Clean up dangling images to save disk space
+            docker image prune -f

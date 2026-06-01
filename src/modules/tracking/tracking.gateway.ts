@@ -28,14 +28,17 @@ interface DriverLocationPayload {
 }
 
 @WebSocketGateway({ cors: true, namespace: '/tracking' })
-export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class TrackingGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer() server: Server;
 
   constructor(
     private readonly trackingService: TrackingService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    @InjectModel(Driver.name) private readonly driverModel: Model<DriverDocument>,
+    @InjectModel(Driver.name)
+    private readonly driverModel: Model<DriverDocument>,
   ) {}
 
   async handleConnection(client: Socket) {
@@ -47,7 +50,10 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     try {
       const secret = this.configService.get<string>('JWT_ACCESS_SECRET');
-      const payload = await this.jwtService.verifyAsync<{ sub: string; role: string }>(token, { secret });
+      const payload = await this.jwtService.verifyAsync<{
+        sub: string;
+        role: string;
+      }>(token, { secret });
 
       client.data.userId = payload.sub;
       client.data.role = payload.role;
@@ -68,12 +74,17 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   async handleDisconnect(client: Socket) {
     if (client.data?.role === 'driver' && client.data?.userId) {
-      await this.trackingService.clearDriverLocation(client.data.userId as string);
+      await this.trackingService.clearDriverLocation(
+        client.data.userId as string,
+      );
     }
   }
 
   @SubscribeMessage('join_route')
-  async handleJoinRoute(@MessageBody() body: { routeId?: string }, @ConnectedSocket() client: Socket) {
+  async handleJoinRoute(
+    @MessageBody() body: { routeId?: string },
+    @ConnectedSocket() client: Socket,
+  ) {
     const routeId = body?.routeId?.trim();
     if (!routeId) {
       throw new WsException('routeId is required');
@@ -83,7 +94,10 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage('driver_location')
-  async handleDriverLocation(@MessageBody() body: DriverLocationPayload, @ConnectedSocket() client: Socket) {
+  async handleDriverLocation(
+    @MessageBody() body: DriverLocationPayload,
+    @ConnectedSocket() client: Socket,
+  ) {
     if (client.data?.role !== 'driver') {
       throw new WsException('Unauthorized');
     }
@@ -114,14 +128,17 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
       updatedAt: new Date().toISOString(),
     };
 
-    await this.trackingService.ingestLocation(client.data.userId as string, payload);
+    await this.trackingService.ingestLocation(
+      client.data.userId as string,
+      payload,
+    );
     this.server.to(`route_${routeId}`).emit('bus_moved', payload);
 
     return { ok: true };
   }
 
   @SubscribeMessage('request_eta')
-  async handleRequestEta() {
+  handleRequestEta() {
     return { etaMinutes: null, message: 'ETA calculation not available yet' };
   }
 

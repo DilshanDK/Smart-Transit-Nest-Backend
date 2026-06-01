@@ -26,7 +26,7 @@ export class Transaction {
   // Optional: Link to Stripe Payment Intent ID for top-ups
   @Prop({ type: String, default: null })
   stripePaymentIntentId?: string;
-  
+
   // Optional: Link to the journey for deductions
   @Prop({ type: Types.ObjectId, ref: 'Journey', default: null })
   journeyId?: Types.ObjectId;

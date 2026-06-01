@@ -6,7 +6,8 @@ import { Transaction, TransactionDocument } from './schemas/transaction.schema';
 @Injectable()
 export class PaymentService {
   constructor(
-    @InjectModel(Transaction.name) private readonly transactionModel: Model<TransactionDocument>,
+    @InjectModel(Transaction.name)
+    private readonly transactionModel: Model<TransactionDocument>,
   ) {}
 
   async getPassengerTransactions(passengerId: string) {

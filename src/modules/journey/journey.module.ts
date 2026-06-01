@@ -10,9 +10,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Journey.name, schema: JourneySchema },
-    ]),
+    MongooseModule.forFeature([{ name: Journey.name, schema: JourneySchema }]),
     AuthModule,
     PaymentModule,
     NotificationsModule,

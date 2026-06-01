@@ -5,13 +5,19 @@ export type LiveTrackDocument = LiveTrack & Document;
 
 @Schema({ timestamps: true, collection: 'live_tracks' })
 export class LiveTrack {
-  @Prop({ type: Types.ObjectId, ref: 'Driver', required: true, unique: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Driver',
+    required: true,
+    unique: true,
+    index: true,
+  })
   driverId: Types.ObjectId;
 
   @Prop({ required: true })
   routeId: string;
 
-  @Prop({ default: null })
+  @Prop({ type: String, default: null })
   busNumber: string | null;
 
   @Prop({
@@ -39,7 +45,7 @@ export class LiveTrack {
   @Prop({ default: 'ACTIVE' })
   status: string;
 
-  @Prop({ default: null })
+  @Prop({ type: Number, default: null })
   etaToNextStop: number | null;
 
   @Prop({ default: Date.now })

@@ -44,6 +44,19 @@ export class PaymentController {
     return this.stripeService.createPaymentIntent(dto.amount, passengerId);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('passenger')
+  @Post('payment/sandbox-credit')
+  async sandboxCredit(@Body() dto: { amount: number }, @Req() req: any) {
+    const passengerId = req.user.userId;
+    await this.walletService.creditFromTopUp(
+      passengerId,
+      dto.amount,
+      'sandbox_' + Date.now(),
+    );
+    return { success: true, amount: dto.amount };
+  }
+
   @Post('webhooks/stripe')
   async handleStripeWebhook(
     @Req() req: any,
@@ -66,18 +79,27 @@ export class PaymentController {
 
     // Handle the event
     switch (event.type) {
-      case 'payment_intent.succeeded':
-        const paymentIntent = event.data.object as any;
-        this.logger.log(`PaymentIntent for ${paymentIntent.amount} was successful!`);
-        
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object;
+        this.logger.log(
+          `PaymentIntent for ${paymentIntent.amount} was successful!`,
+        );
+
         const passengerId = paymentIntent.metadata?.passengerId;
         if (passengerId) {
           // Stripe amounts are in cents, so divide by 100
-          await this.walletService.creditFromTopUp(passengerId, paymentIntent.amount / 100, paymentIntent.id);
+          await this.walletService.creditFromTopUp(
+            passengerId,
+            paymentIntent.amount / 100,
+            paymentIntent.id,
+          );
         } else {
-          this.logger.warn(`No passengerId found in metadata for PaymentIntent ${paymentIntent.id}`);
+          this.logger.warn(
+            `No passengerId found in metadata for PaymentIntent ${paymentIntent.id}`,
+          );
         }
         break;
+      }
       // ... handle other event types
       default:
         this.logger.log(`Unhandled event type ${event.type}`);

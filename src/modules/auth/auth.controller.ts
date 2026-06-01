@@ -3,6 +3,7 @@ import {
   Post,
   Body,
   Get,
+  Patch,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -14,6 +15,8 @@ import {
   LoginDriverDto,
   RefreshTokenDto,
   UpdateFcmTokenDto,
+  RegisterCompanyDto,
+  LoginCompanyDto,
 } from './dto';
 import { JwtAuthGuard } from '../../core/guards/jwt-auth.guard';
 import { RolesGuard } from '../../core/guards/roles.guard';
@@ -48,6 +51,32 @@ export class AuthController {
     @Body() dto: RefreshTokenDto,
   ) {
     return this.authService.refreshTokens(userId, 'passenger', dto);
+  }
+
+  // ──────────────────────────────────────────────
+  // BUS COMPANY ENDPOINTS
+  // ──────────────────────────────────────────────
+
+  @Post('company/register')
+  async registerCompany(@Body() dto: RegisterCompanyDto) {
+    return this.authService.registerCompany(dto);
+  }
+
+  @Post('company/login')
+  @HttpCode(HttpStatus.OK)
+  async loginCompany(@Body() dto: LoginCompanyDto) {
+    return this.authService.loginCompany(dto);
+  }
+
+  @Post('company/refresh')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('company')
+  async refreshCompany(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: RefreshTokenDto,
+  ) {
+    return this.authService.refreshTokens(userId, 'company', dto);
   }
 
   // ──────────────────────────────────────────────
@@ -86,6 +115,22 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async getMe(@CurrentUser() user: { userId: string; role: string }) {
     return this.authService.getMe(user.userId, user.role);
+  }
+
+  @Patch('profile')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @CurrentUser() user: { userId: string; role: string },
+    @Body()
+    dto: {
+      fullName?: string;
+      email?: string;
+      currentPassword?: string;
+      newPassword?: string;
+    },
+  ) {
+    return this.authService.updateProfile(user.userId, user.role, dto);
   }
 
   @Post('fcm-token')

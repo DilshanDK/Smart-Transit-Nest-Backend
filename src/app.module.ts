@@ -8,6 +8,7 @@ import { PaymentModule } from './modules/payment/payment.module';
 import { DriverModule } from './modules/driver/driver.module';
 import { JourneyModule } from './modules/journey/journey.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
+import { CompanyModule } from './modules/company/company.module';
 
 @Module({
   imports: [
@@ -22,9 +23,9 @@ import { TrackingModule } from './modules/tracking/tracking.module';
     DriverModule,
     JourneyModule,
     TrackingModule,
+    CompanyModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
-

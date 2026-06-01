@@ -4,7 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 export interface JwtPayload {
-  sub: string;     // userId (MongoDB _id)
+  sub: string; // userId (MongoDB _id)
   role: 'passenger' | 'driver' | 'company';
 }
 
@@ -27,7 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Passport calls this automatically after verifying the token signature.
    * The returned object is attached to req.user on every protected route.
    */
-  async validate(payload: JwtPayload) {
+  validate(payload: JwtPayload) {
     return { userId: payload.sub, role: payload.role };
   }
 }

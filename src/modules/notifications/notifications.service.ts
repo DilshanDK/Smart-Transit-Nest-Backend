@@ -27,12 +27,19 @@ export class NotificationsService {
 
   constructor(
     private readonly configService: ConfigService,
-    @InjectModel(Passenger.name) private readonly passengerModel: Model<PassengerDocument>,
-    @InjectModel(Driver.name) private readonly driverModel: Model<DriverDocument>,
+    @InjectModel(Passenger.name)
+    private readonly passengerModel: Model<PassengerDocument>,
+    @InjectModel(Driver.name)
+    private readonly driverModel: Model<DriverDocument>,
   ) {}
 
-  async notifyPassenger(passengerId: string, payload: NotificationPayload): Promise<NotificationResult> {
-    const passenger = await this.passengerModel.findById(passengerId).select('fcmToken');
+  async notifyPassenger(
+    passengerId: string,
+    payload: NotificationPayload,
+  ): Promise<NotificationResult> {
+    const passenger = await this.passengerModel
+      .findById(passengerId)
+      .select('fcmToken');
     if (!passenger?.fcmToken) {
       this.logger.warn(`Passenger ${passengerId} has no FCM token`);
       return { delivered: false, reason: 'missing_token' };
@@ -41,7 +48,10 @@ export class NotificationsService {
     return this.sendToToken(passenger.fcmToken, payload);
   }
 
-  async notifyDriver(driverId: string, payload: NotificationPayload): Promise<NotificationResult> {
+  async notifyDriver(
+    driverId: string,
+    payload: NotificationPayload,
+  ): Promise<NotificationResult> {
     const driver = await this.driverModel.findById(driverId).select('fcmToken');
     if (!driver?.fcmToken) {
       this.logger.warn(`Driver ${driverId} has no FCM token`);
@@ -51,7 +61,10 @@ export class NotificationsService {
     return this.sendToToken(driver.fcmToken, payload);
   }
 
-  private async sendToToken(token: string, payload: NotificationPayload): Promise<NotificationResult> {
+  private async sendToToken(
+    token: string,
+    payload: NotificationPayload,
+  ): Promise<NotificationResult> {
     try {
       const messageId = await this.getMessaging().send({
         token,
@@ -85,9 +98,28 @@ export class NotificationsService {
   }
 
   private resolveCredential(): admin.credential.Credential {
-    const json = this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT_JSON');
-    const base64 = this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT_BASE64');
-    const path = this.configService.get<string>('FIREBASE_SERVICE_ACCOUNT_PATH');
+    const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
+    const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
+    const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
+
+    if (projectId && clientEmail && privateKey) {
+      const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+      return admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey: formattedPrivateKey,
+      });
+    }
+
+    const json = this.configService.get<string>(
+      'FIREBASE_SERVICE_ACCOUNT_JSON',
+    );
+    const base64 = this.configService.get<string>(
+      'FIREBASE_SERVICE_ACCOUNT_BASE64',
+    );
+    const path = this.configService.get<string>(
+      'FIREBASE_SERVICE_ACCOUNT_PATH',
+    );
 
     if (json) {
       return admin.credential.cert(JSON.parse(json));

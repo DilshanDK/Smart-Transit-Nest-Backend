@@ -14,15 +14,24 @@ import * as bcrypt from 'bcrypt';
 import { Passenger, PassengerDocument } from './schemas/passenger.schema';
 import { Driver, DriverDocument } from './schemas/driver.schema';
 import { BusCompany, BusCompanyDocument } from './schemas/bus-company.schema';
-import { RegisterPassengerDto, LoginPassengerDto, LoginDriverDto, RefreshTokenDto } from './dto';
+import {
+  RegisterPassengerDto,
+  LoginPassengerDto,
+  LoginDriverDto,
+  RefreshTokenDto,
+  RegisterCompanyDto,
+  LoginCompanyDto,
+} from './dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectModel(Passenger.name) private passengerModel: Model<PassengerDocument>,
+    @InjectModel(Passenger.name)
+    private passengerModel: Model<PassengerDocument>,
     @InjectModel(Driver.name) private driverModel: Model<DriverDocument>,
-    @InjectModel(BusCompany.name) private busCompanyModel: Model<BusCompanyDocument>,
+    @InjectModel(BusCompany.name)
+    private busCompanyModel: Model<BusCompanyDocument>,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
@@ -33,7 +42,9 @@ export class AuthService {
 
   async registerPassenger(dto: RegisterPassengerDto) {
     // Check if passenger already exists
-    const existing = await this.passengerModel.findOne({ email: dto.email.toLowerCase() });
+    const existing = await this.passengerModel.findOne({
+      email: dto.email.toLowerCase(),
+    });
     if (existing) {
       throw new ConflictException('A passenger with this email already exists');
     }
@@ -49,10 +60,17 @@ export class AuthService {
     });
 
     // Generate tokens
-    const tokens = await this.generateTokens(passenger._id.toString(), 'passenger');
+    const tokens = await this.generateTokens(
+      passenger._id.toString(),
+      'passenger',
+    );
 
     // Store refresh token hash in DB
-    await this.updateRefreshTokenHash(passenger._id.toString(), tokens.refreshToken, 'passenger');
+    await this.updateRefreshTokenHash(
+      passenger._id.toString(),
+      tokens.refreshToken,
+      'passenger',
+    );
 
     return {
       message: 'Passenger registered successfully',
@@ -68,18 +86,30 @@ export class AuthService {
   }
 
   async loginPassenger(dto: LoginPassengerDto) {
-    const passenger = await this.passengerModel.findOne({ email: dto.email.toLowerCase() });
+    const passenger = await this.passengerModel.findOne({
+      email: dto.email.toLowerCase(),
+    });
     if (!passenger) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, passenger.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      passenger.passwordHash,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const tokens = await this.generateTokens(passenger._id.toString(), 'passenger');
-    await this.updateRefreshTokenHash(passenger._id.toString(), tokens.refreshToken, 'passenger');
+    const tokens = await this.generateTokens(
+      passenger._id.toString(),
+      'passenger',
+    );
+    await this.updateRefreshTokenHash(
+      passenger._id.toString(),
+      tokens.refreshToken,
+      'passenger',
+    );
 
     return {
       accessToken: tokens.accessToken,
@@ -89,6 +119,78 @@ export class AuthService {
         email: passenger.email,
         fullName: passenger.fullName,
         walletBalance: parseFloat(passenger.walletBalance?.toString() || '0'),
+      },
+    };
+  }
+
+  async registerCompany(dto: RegisterCompanyDto) {
+    const existing = await this.busCompanyModel.findOne({
+      email: dto.email.toLowerCase(),
+    });
+    if (existing) {
+      throw new ConflictException(
+        'A bus company with this email already exists',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+    const company = await this.busCompanyModel.create({
+      companyName: dto.companyName,
+      email: dto.email.toLowerCase(),
+      passwordHash,
+    });
+
+    const tokens = await this.generateTokens(company._id.toString(), 'company');
+    await this.updateRefreshTokenHash(
+      company._id.toString(),
+      tokens.refreshToken,
+      'company',
+    );
+
+    return {
+      message: 'Bus company registered successfully',
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: company._id,
+        email: company.email,
+        companyName: company.companyName,
+        isOnboarded: company.isOnboarded,
+      },
+    };
+  }
+
+  async loginCompany(dto: LoginCompanyDto) {
+    const company = await this.busCompanyModel.findOne({
+      email: dto.email.toLowerCase(),
+    });
+    if (!company) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      company.passwordHash,
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const tokens = await this.generateTokens(company._id.toString(), 'company');
+    await this.updateRefreshTokenHash(
+      company._id.toString(),
+      tokens.refreshToken,
+      'company',
+    );
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: company._id,
+        email: company.email,
+        companyName: company.companyName,
+        isOnboarded: company.isOnboarded,
       },
     };
   }
@@ -110,7 +212,11 @@ export class AuthService {
     await driver.save();
 
     const tokens = await this.generateTokens(driver._id.toString(), 'driver');
-    await this.updateRefreshTokenHash(driver._id.toString(), tokens.refreshToken, 'driver');
+    await this.updateRefreshTokenHash(
+      driver._id.toString(),
+      tokens.refreshToken,
+      'driver',
+    );
 
     return {
       accessToken: tokens.accessToken,
@@ -137,12 +243,18 @@ export class AuthService {
       throw new ForbiddenException('Access denied');
     }
 
-    const isRefreshTokenValid = await bcrypt.compare(dto.refreshToken, user.refreshTokenHash);
+    const isRefreshTokenValid = await bcrypt.compare(
+      dto.refreshToken,
+      user.refreshTokenHash,
+    );
     if (!isRefreshTokenValid) {
       throw new ForbiddenException('Access denied');
     }
 
-    const tokens = await this.generateTokens(userId, role as JwtPayload['role']);
+    const tokens = await this.generateTokens(
+      userId,
+      role as JwtPayload['role'],
+    );
     await this.updateRefreshTokenHash(userId, tokens.refreshToken, role);
 
     return tokens;
@@ -173,7 +285,9 @@ export class AuthService {
 
   async getMe(userId: string, role: string) {
     const model = this.getModelByRole(role);
-    const user = await model.findById(userId).select('-passwordHash -refreshTokenHash');
+    const user = await model
+      .findById(userId)
+      .select('-passwordHash -refreshTokenHash');
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -193,6 +307,59 @@ export class AuthService {
     return { message: 'FCM token updated' };
   }
 
+  async updateProfile(
+    userId: string,
+    role: string,
+    dto: {
+      fullName?: string;
+      email?: string;
+      currentPassword?: string;
+      newPassword?: string;
+    },
+  ) {
+    const model = this.getModelByRole(role);
+    const user = await model.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const updates: any = {};
+
+    if (dto.fullName) {
+      updates.fullName = dto.fullName;
+    }
+
+    if (dto.email && dto.email.toLowerCase() !== user.email) {
+      const existing = await model.findOne({ email: dto.email.toLowerCase() });
+      if (existing) {
+        throw new ConflictException('Email already in use');
+      }
+      updates.email = dto.email.toLowerCase();
+    }
+
+    if (dto.newPassword) {
+      if (!dto.currentPassword) {
+        throw new ForbiddenException(
+          'Current password is required to change password',
+        );
+      }
+      const isMatch = await bcrypt.compare(
+        dto.currentPassword,
+        user.passwordHash,
+      );
+      if (!isMatch) {
+        throw new ForbiddenException('Invalid current password');
+      }
+      updates.passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    }
+
+    const updatedUser = await model
+      .findByIdAndUpdate(userId, { $set: updates }, { new: true })
+      .select('-passwordHash -refreshTokenHash');
+
+    return { message: 'Profile updated successfully', user: updatedUser };
+  }
+
   // ──────────────────────────────────────────────
   // PRIVATE HELPERS
   // ──────────────────────────────────────────────
@@ -202,8 +369,10 @@ export class AuthService {
 
     const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET')!;
     const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET')!;
-    const accessExpires = this.configService.get<string>('JWT_ACCESS_EXPIRES') || '15m';
-    const refreshExpires = this.configService.get<string>('JWT_REFRESH_EXPIRES') || '7d';
+    const accessExpires =
+      this.configService.get<string>('JWT_ACCESS_EXPIRES') || '15m';
+    const refreshExpires =
+      this.configService.get<string>('JWT_REFRESH_EXPIRES') || '7d';
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload as any, {
@@ -219,7 +388,11 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private async updateRefreshTokenHash(userId: string, refreshToken: string, role: string) {
+  private async updateRefreshTokenHash(
+    userId: string,
+    refreshToken: string,
+    role: string,
+  ) {
     const hash = await bcrypt.hash(refreshToken, 12);
     const model = this.getModelByRole(role);
     await model.findByIdAndUpdate(userId, { refreshTokenHash: hash });
