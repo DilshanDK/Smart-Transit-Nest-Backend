@@ -5,7 +5,7 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm install
 
 COPY . .
 
@@ -18,7 +18,7 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 # Stage 3: Runner
 FROM node:20-alpine AS runner
