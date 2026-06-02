@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'smarttransit-nest-backend/**'
 
 env:
   REGISTRY: ghcr.io
@@ -47,8 +45,8 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./smarttransit-nest-backend
-          file: ./smarttransit-nest-backend/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -67,9 +65,8 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "smarttransit-nest-backend/docker-compose.yml"
+          source: "docker-compose.yml"
           target: "/home/ubuntu/Projects/smart-transit/nest-backend"
-          strip_components: 1
 
       - name: Execute Remote SSH Commands
         uses: appleboy/ssh-action@v1.0.3
