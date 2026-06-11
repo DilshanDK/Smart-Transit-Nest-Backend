@@ -16,6 +16,6 @@ import { AuthModule } from '../auth/auth.module';
   ],
   controllers: [PaymentController],
   providers: [PaymentService, StripeConnectService, WalletLedgerService],
-  exports: [PaymentService, WalletLedgerService],
+  exports: [PaymentService, WalletLedgerService, StripeConnectService],
 })
 export class PaymentModule {}

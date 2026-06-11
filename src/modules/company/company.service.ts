@@ -180,4 +180,49 @@ export class CompanyService {
 
     return Object.values(routeStats);
   }
+
+  async exportJourneysToCsv(companyId: string, from?: string, to?: string): Promise<string> {
+    const companyDrivers = await this.driverModel.find({
+      companyId: new Types.ObjectId(companyId),
+    });
+    const driverIds = companyDrivers.map((d) => d._id);
+    const driverMap = new Map(companyDrivers.map((d) => [d._id.toString(), d.fullName]));
+
+    const query: any = {
+      driverId: { $in: driverIds },
+      status: 'COMPLETED',
+    };
+
+    if (from || to) {
+      query.startTimestamp = {};
+      if (from) {
+        query.startTimestamp.$gte = new Date(from);
+      }
+      if (to) {
+        query.startTimestamp.$lte = new Date(to);
+      }
+    }
+
+    const journeys = await this.journeyModel.find(query).sort({ startTimestamp: -1 });
+
+    const headers = ['Journey ID', 'Driver Name', 'Route ID', 'Start Coordinates', 'End Coordinates', 'Start Time', 'End Time', 'Distance (Km)', 'Fare (LKR)'];
+    const rows = journeys.map((j) => {
+      const driverName = driverMap.get(j.driverId?.toString()) || 'Unknown';
+      const startCoords = j.startLocation?.coordinates ? j.startLocation.coordinates.join('; ') : 'N/A';
+      const endCoords = j.endLocation?.coordinates ? j.endLocation.coordinates.join('; ') : 'N/A';
+      return [
+        j._id.toString(),
+        `"${driverName.replace(/"/g, '""')}"`,
+        j.routeId || 'N/A',
+        `"${startCoords}"`,
+        `"${endCoords}"`,
+        j.startTimestamp ? j.startTimestamp.toISOString() : 'N/A',
+        j.endTimestamp ? j.endTimestamp.toISOString() : 'N/A',
+        j.distanceKm !== undefined ? j.distanceKm.toString() : 'N/A',
+        j.fareCalculated ? j.fareCalculated.toString() : '0',
+      ];
+    });
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
 }

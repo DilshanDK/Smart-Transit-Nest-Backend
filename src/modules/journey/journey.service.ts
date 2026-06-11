@@ -90,6 +90,10 @@ export class JourneyService {
 
     if (!activeJourney) {
       // --- TAP ON ---
+      const useMock = this.configService.get<string>('USE_MOCK_LOCATION') === 'true';
+      const startLng = useMock ? 79.8612 : tapDto.longitude;
+      const startLat = useMock ? 6.9271 : tapDto.latitude;
+
       const journey = new this.journeyModel({
         passengerId: new Types.ObjectId(passengerId),
         driverId: new Types.ObjectId(driverId),
@@ -98,7 +102,7 @@ export class JourneyService {
           : 'Route 120',
         startLocation: {
           type: 'Point',
-          coordinates: [tapDto.longitude, tapDto.latitude],
+          coordinates: [startLng, startLat],
         },
         startTimestamp: new Date(),
         status: 'IN_PROGRESS',
@@ -130,12 +134,16 @@ export class JourneyService {
       };
     } else {
       // --- TAP OFF ---
+      const useMock = this.configService.get<string>('USE_MOCK_LOCATION') === 'true';
+      const endLng = useMock ? 79.8720 : tapDto.longitude;
+      const endLat = useMock ? 6.9350 : tapDto.latitude;
+
       const [startLng, startLat] = activeJourney.startLocation.coordinates;
       const distanceKm = this.calculateHaversineDistance(
         startLat,
         startLng,
-        tapDto.latitude,
-        tapDto.longitude,
+        endLat,
+        endLng,
       );
 
       // Calculate fare: base of 50.00 LKR + 10.00 LKR per km
@@ -156,7 +164,7 @@ export class JourneyService {
 
         activeJourney.endLocation = {
           type: 'Point',
-          coordinates: [tapDto.longitude, tapDto.latitude],
+          coordinates: [endLng, endLat],
         };
         activeJourney.endTimestamp = new Date();
         activeJourney.distanceKm = parseFloat(distanceKm.toFixed(2));

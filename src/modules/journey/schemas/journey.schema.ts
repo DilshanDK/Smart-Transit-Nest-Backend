@@ -34,7 +34,6 @@ export class Journey {
     type: {
       type: String,
       enum: ['Point'],
-      default: 'Point',
     },
     coordinates: {
       type: [Number],
@@ -82,4 +81,4 @@ export const JourneySchema = SchemaFactory.createForClass(Journey);
 JourneySchema.index({ passengerId: 1, status: 1 });
 JourneySchema.index({ driverId: 1, status: 1 });
 JourneySchema.index({ startLocation: '2dsphere' });
-JourneySchema.index({ endLocation: '2dsphere' });
+JourneySchema.index({ endLocation: '2dsphere' }, { sparse: true });
