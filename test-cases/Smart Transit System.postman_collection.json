@@ -1,0 +1,1012 @@
+{
+  "info": {
+    "_postman_id": "84f848c4-2572-4161-9b19-c9d127fa713f",
+    "name": "Smart Transit System Integration Test",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Passenger Auth & Setup",
+      "item": [
+        {
+          "name": "Register Passenger",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const randomSuffix = Math.floor(Math.random() * 100000);",
+                  "pm.collectionVariables.set('passenger_email', `passenger_${randomSuffix}@example.com`);",
+                  "pm.collectionVariables.set('passenger_password', 'passenger123');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.test('Should return user details and tokens', function () {",
+                  "    pm.expect(response).to.have.property('accessToken');",
+                  "    pm.expect(response).to.have.property('refreshToken');",
+                  "    pm.expect(response.user).to.have.property('id');",
+                  "});",
+                  "pm.collectionVariables.set('passenger_id', response.user.id);",
+                  "pm.collectionVariables.set('passenger_accessToken', response.accessToken);",
+                  "pm.collectionVariables.set('passenger_refreshToken', response.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{passenger_email}}\",\n  \"fullName\": \"Test Passenger {{passenger_email}}\",\n  \"password\": \"{{passenger_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/passenger/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "passenger",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Passenger",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('passenger_accessToken', response.accessToken);",
+                  "pm.collectionVariables.set('passenger_refreshToken', response.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{passenger_email}}\",\n  \"password\": \"{{passenger_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/passenger/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "passenger",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Passenger Profile (Me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.test('Should return passenger role and profile', function () {",
+                  "    pm.expect(response.role).to.equal('passenger');",
+                  "    pm.expect(response.user.email).to.equal(pm.collectionVariables.get('passenger_email'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Bus Company & Driver Setup",
+      "item": [
+        {
+          "name": "Register Company",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const randomSuffix = Math.floor(Math.random() * 100000);",
+                  "pm.collectionVariables.set('company_email', `company_${randomSuffix}@example.com`);",
+                  "pm.collectionVariables.set('company_password', 'companypassword123');",
+                  "pm.collectionVariables.set('company_name', `Express Transit ${randomSuffix}`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('company_id', response.user.id);",
+                  "pm.collectionVariables.set('company_accessToken', response.accessToken);",
+                  "pm.collectionVariables.set('company_refreshToken', response.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"{{company_name}}\",\n  \"email\": \"{{company_email}}\",\n  \"password\": \"{{company_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/company/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "company",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Company",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('company_accessToken', response.accessToken);",
+                  "pm.collectionVariables.set('company_refreshToken', response.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{company_email}}\",\n  \"password\": \"{{company_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/company/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "company",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Driver",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const randomSuffix = Math.floor(Math.random() * 100000);",
+                  "pm.collectionVariables.set('driver_email', `driver_${randomSuffix}@example.com`);",
+                  "pm.collectionVariables.set('driver_license', `DL-LN-${randomSuffix}`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('driver_id', response.driver.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{company_accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"David Driver\",\n  \"email\": \"{{driver_email}}\",\n  \"licenseNumber\": \"{{driver_license}}\",\n  \"password\": \"driverpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/company/drivers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company",
+                "drivers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Drivers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.test('List contains the created driver', function () {",
+                  "    const match = response.find(d => d.email === pm.collectionVariables.get('driver_email'));",
+                  "    pm.expect(match).to.not.be.undefined;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{company_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/company/drivers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company",
+                "drivers"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Driver Shift operations",
+      "item": [
+        {
+          "name": "Verify Driver (Shift Bind)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('driver_accessToken', response.accessToken);",
+                  "pm.collectionVariables.set('driver_refreshToken', response.refreshToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverId\": \"{{driver_id}}\",\n  \"busRegistration\": \"WP-GA-9021\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/driver/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "driver",
+                "verify"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Start Shift",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/driver/shift/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "driver",
+                "shift",
+                "start"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Ticketing & Journeys",
+      "item": [
+        {
+          "name": "Passenger Top-Up (Sandbox)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 300\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/sandbox-credit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "sandbox-credit"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Generate QR Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('passenger_qr_token', response.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/journey/qr-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "journey",
+                "qr-token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Journey Tap-On (Boarding)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.test('Journey status is TAP_ON', function () {",
+                  "    pm.expect(response.event).to.equal('TAP_ON');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{passenger_qr_token}}\",\n  \"mode\": \"QR\",\n  \"latitude\": 6.9271,\n  \"longitude\": 79.8612\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/journey/tap",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "journey",
+                "tap"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Active Journey",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.test('Returns active journey details', function () {",
+                  "    pm.expect(response.status).to.equal('IN_PROGRESS');",
+                  "    pm.expect(response.passengerId).to.equal(pm.collectionVariables.get('passenger_id'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/journey/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "journey",
+                "active"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Journey Tap-Off (Alighting)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.test('Journey status is TAP_OFF', function () {",
+                  "    pm.expect(response.event).to.equal('TAP_OFF');",
+                  "    pm.expect(response.fare).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{passenger_qr_token}}\",\n  \"mode\": \"QR\",\n  \"latitude\": 6.9350,\n  \"longitude\": 79.8720\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/journey/tap",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "journey",
+                "tap"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Passenger Journey History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.test('History contains completed journey', function () {",
+                  "    pm.expect(response.length).to.be.above(0);",
+                  "    pm.expect(response[0].status).to.equal('COMPLETED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{passenger_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/journey/passenger/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "journey",
+                "passenger",
+                "history"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Company Analytics & Teardown",
+      "item": [
+        {
+          "name": "Get Company Stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.test('Dashboard KPIs are populated', function () {",
+                  "    pm.expect(response).to.have.property('dailyRevenue');",
+                  "    pm.expect(response).to.have.property('totalJourneys');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{company_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/company/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company",
+                "stats"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Company Fleet",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{company_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/company/fleet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company",
+                "fleet"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Trigger Company Payout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const response = pm.response.json();",
+                  "pm.test('Payout triggered successfully', function () {",
+                  "    pm.expect(response.message).to.contain('Nightly payout process triggered successfully');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{company_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/company/payout/trigger",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company",
+                "payout",
+                "trigger"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Export Company Reports (CSV)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Content-Type is text/csv', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv');",
+                  "});",
+                  "pm.test('CSV body contains headers', function () {",
+                  "    pm.expect(pm.response.text()).to.include('Journey ID,Driver Name,Route ID');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{company_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/company/reports/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company",
+                "reports",
+                "export"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "End Shift",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/driver/shift/end",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "driver",
+                "shift",
+                "end"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "passenger_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "passenger_password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "passenger_accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "passenger_refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "passenger_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "passenger_qr_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "company_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "company_password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "company_name",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "company_accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "company_refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "company_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driver_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driver_license",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driver_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driver_accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driver_refreshToken",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

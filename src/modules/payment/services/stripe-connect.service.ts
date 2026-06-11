@@ -72,4 +72,19 @@ export class StripeConnectService {
       throw err;
     }
   }
+
+  async createTransfer(amount: number, stripeConnectAccountId: string, description?: string, options?: any) {
+    try {
+      const transfer = await this.stripe.transfers.create({
+        amount: Math.round(amount * 100), // Convert LKR to cents
+        currency: 'lkr',
+        destination: stripeConnectAccountId,
+        description: description || 'Daily passenger fare payout',
+      }, options);
+      return transfer;
+    } catch (error) {
+      this.logger.error(`Failed to create Stripe transfer to ${stripeConnectAccountId}`, error);
+      throw new InternalServerErrorException(`Failed to execute payout transfer: ${error.message}`);
+    }
+  }
 }
