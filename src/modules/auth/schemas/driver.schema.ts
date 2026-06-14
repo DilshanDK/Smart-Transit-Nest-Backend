@@ -1,10 +1,20 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { generateShortId } from '../../../core/utils/id-generator';
 
 export type DriverDocument = Driver & Document;
 
 @Schema({ timestamps: true, collection: 'drivers' })
 export class Driver {
+  @Prop({ 
+    required: true, 
+    unique: true, 
+    uppercase: true, 
+    trim: true, 
+    default: () => `DR-${generateShortId(6)}`
+  })
+  driverId: string;
+
   @Prop({ required: true, unique: true, lowercase: true, trim: true })
   email: string;
 
