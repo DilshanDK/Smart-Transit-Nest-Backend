@@ -78,6 +78,7 @@ export class AuthService {
       refreshToken: tokens.refreshToken,
       user: {
         id: passenger._id,
+        passengerId: passenger.passengerId,
         email: passenger.email,
         fullName: passenger.fullName,
         walletBalance: 0,
@@ -116,6 +117,7 @@ export class AuthService {
       refreshToken: tokens.refreshToken,
       user: {
         id: passenger._id,
+        passengerId: passenger.passengerId,
         email: passenger.email,
         fullName: passenger.fullName,
         walletBalance: parseFloat(passenger.walletBalance?.toString() || '0'),
@@ -153,6 +155,7 @@ export class AuthService {
       refreshToken: tokens.refreshToken,
       user: {
         id: company._id,
+        companyId: company.companyId,
         email: company.email,
         companyName: company.companyName,
         isOnboarded: company.isOnboarded,
@@ -188,6 +191,7 @@ export class AuthService {
       refreshToken: tokens.refreshToken,
       user: {
         id: company._id,
+        companyId: company.companyId,
         email: company.email,
         companyName: company.companyName,
         isOnboarded: company.isOnboarded,
@@ -223,6 +227,7 @@ export class AuthService {
       refreshToken: tokens.refreshToken,
       user: {
         id: driver._id,
+        driverId: driver.driverId,
         email: driver.email,
         fullName: driver.fullName,
         isOnShift: driver.isOnShift,

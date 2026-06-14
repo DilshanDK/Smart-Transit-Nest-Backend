@@ -23,7 +23,7 @@ async function bootstrap() {
   // Enable CORS with restricted origin list
   const allowedOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')
-    : ['http://localhost:3000', 'http://localhost:5000'];
+    : ['http://localhost:4001'];
 
   app.enableCors({
     origin: (origin, callback) => {
