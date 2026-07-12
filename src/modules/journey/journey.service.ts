@@ -64,6 +64,7 @@ export class JourneyService {
         const secret = this.configService.get<string>('QR_JWT_SECRET');
         const payload = await this.jwtService.verifyAsync(tapDto.token, {
           secret,
+          ignoreExpiration: tapDto.offlineTimestamp ? true : false,
         });
         passengerId = payload.sub;
       } catch {
@@ -104,7 +105,7 @@ export class JourneyService {
           type: 'Point',
           coordinates: [startLng, startLat],
         },
-        startTimestamp: new Date(),
+        startTimestamp: tapDto.offlineTimestamp ? new Date(tapDto.offlineTimestamp) : new Date(),
         status: 'IN_PROGRESS',
       });
       await journey.save();
@@ -166,7 +167,7 @@ export class JourneyService {
           type: 'Point',
           coordinates: [endLng, endLat],
         };
-        activeJourney.endTimestamp = new Date();
+        activeJourney.endTimestamp = tapDto.offlineTimestamp ? new Date(tapDto.offlineTimestamp) : new Date();
         activeJourney.distanceKm = parseFloat(distanceKm.toFixed(2));
         activeJourney.fareCalculated = Types.Decimal128.fromString(
           fare.toFixed(2),

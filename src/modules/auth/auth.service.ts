@@ -298,7 +298,16 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    return { role, user };
+    const userObj = user.toObject();
+
+    // Parse Decimal128 to standard float numbers for frontend consumption
+    if (role === 'passenger' && userObj.walletBalance) {
+      userObj.walletBalance = parseFloat(userObj.walletBalance.toString());
+    } else if (role === 'company' && userObj.pendingLedgerBalance) {
+      userObj.pendingLedgerBalance = parseFloat(userObj.pendingLedgerBalance.toString());
+    }
+
+    return { role, user: userObj };
   }
 
   async updateFcmToken(userId: string, role: string, token: string) {

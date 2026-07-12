@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsNumber, IsNotEmpty } from 'class-validator';
+import { IsString, IsEnum, IsNumber, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class TapDto {
   @IsString()
@@ -13,4 +13,8 @@ export class TapDto {
 
   @IsNumber()
   longitude: number;
+
+  @IsString()
+  @IsOptional()
+  offlineTimestamp?: string;
 }
