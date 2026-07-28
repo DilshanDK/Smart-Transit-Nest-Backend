@@ -44,7 +44,7 @@ export class WalletLedgerService {
     companyId: string | Types.ObjectId,
     journeyId: string | Types.ObjectId,
     session: ClientSession,
-  ): Promise<TransactionDocument> {
+  ): Promise<{ transaction: TransactionDocument; remainingBalance: number }> {
     // 1. Get passenger and check balance
     const passenger = await this.passengerModel
       .findById(passengerId)
@@ -64,6 +64,8 @@ export class WalletLedgerService {
         HttpStatus.PAYMENT_REQUIRED,
       );
     }
+
+    const remainingBalance = currentBalance - amount;
 
     // 2. Deduct fare from passenger
     await this.passengerModel.findByIdAndUpdate(
@@ -90,7 +92,8 @@ export class WalletLedgerService {
       journeyId: new Types.ObjectId(journeyId),
     });
 
-    return tx.save({ session });
+    const transaction = await tx.save({ session });
+    return { transaction, remainingBalance };
   }
 
   /**

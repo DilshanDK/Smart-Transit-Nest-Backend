@@ -41,6 +41,9 @@ export class Driver {
 
   @Prop({ default: null })
   fcmToken: string;
+
+  @Prop({ default: null })
+  googleId: string;
 }
 
 export const DriverSchema = SchemaFactory.createForClass(Driver);

@@ -27,6 +27,12 @@ import { CurrentUser } from '../../core/decorators/current-user.decorator';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(@Body() dto: LoginPassengerDto) {
+    return this.authService.login(dto);
+  }
+
   // ──────────────────────────────────────────────
   // PASSENGER ENDPOINTS
   // ──────────────────────────────────────────────
@@ -40,6 +46,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async loginPassenger(@Body() dto: LoginPassengerDto) {
     return this.authService.loginPassenger(dto);
+  }
+
+  @Post('passenger/google')
+  @HttpCode(HttpStatus.OK)
+  async googleLoginPassenger(@Body('idToken') idToken: string) {
+    return this.authService.googleLogin(idToken, 'passenger');
   }
 
   @Post('passenger/refresh')
@@ -68,6 +80,12 @@ export class AuthController {
     return this.authService.loginCompany(dto);
   }
 
+  @Post('company/google')
+  @HttpCode(HttpStatus.OK)
+  async googleLoginCompany(@Body('idToken') idToken: string) {
+    return this.authService.googleLogin(idToken, 'company');
+  }
+
   @Post('company/refresh')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -89,6 +107,12 @@ export class AuthController {
     return this.authService.verifyDriver(dto);
   }
 
+  @Post('driver/google')
+  @HttpCode(HttpStatus.OK)
+  async googleLoginDriver(@Body('idToken') idToken: string) {
+    return this.authService.googleLogin(idToken, 'driver');
+  }
+
   @Post('driver/refresh')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -103,6 +127,12 @@ export class AuthController {
   // ──────────────────────────────────────────────
   // SHARED ENDPOINTS
   // ──────────────────────────────────────────────
+
+  @Post('unified/google')
+  @HttpCode(HttpStatus.OK)
+  async googleLoginUnified(@Body('idToken') idToken: string) {
+    return this.authService.googleLoginUnified(idToken);
+  }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)

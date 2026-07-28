@@ -8,6 +8,8 @@ import * as admin from 'firebase-admin';
 import { Passenger, PassengerDocument } from '../auth/schemas/passenger.schema';
 import { Driver, DriverDocument } from '../auth/schemas/driver.schema';
 
+import { getFirebaseAdminApp } from '../../core/utils/firebase-admin';
+
 export interface NotificationPayload {
   title: string;
   body: string;
@@ -88,53 +90,8 @@ export class NotificationsService {
       return this.messaging;
     }
 
-    if (!admin.apps.length) {
-      const credential = this.resolveCredential();
-      admin.initializeApp({ credential });
-    }
-
-    this.messaging = admin.messaging();
+    const app = getFirebaseAdminApp(this.configService);
+    this.messaging = app.messaging();
     return this.messaging;
-  }
-
-  private resolveCredential(): admin.credential.Credential {
-    const projectId = this.configService.get<string>('FIREBASE_PROJECT_ID');
-    const clientEmail = this.configService.get<string>('FIREBASE_CLIENT_EMAIL');
-    const privateKey = this.configService.get<string>('FIREBASE_PRIVATE_KEY');
-
-    if (projectId && clientEmail && privateKey) {
-      const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
-      return admin.credential.cert({
-        projectId,
-        clientEmail,
-        privateKey: formattedPrivateKey,
-      });
-    }
-
-    const json = this.configService.get<string>(
-      'FIREBASE_SERVICE_ACCOUNT_JSON',
-    );
-    const base64 = this.configService.get<string>(
-      'FIREBASE_SERVICE_ACCOUNT_BASE64',
-    );
-    const path = this.configService.get<string>(
-      'FIREBASE_SERVICE_ACCOUNT_PATH',
-    );
-
-    if (json) {
-      return admin.credential.cert(JSON.parse(json));
-    }
-
-    if (base64) {
-      const decoded = Buffer.from(base64, 'base64').toString('utf8');
-      return admin.credential.cert(JSON.parse(decoded));
-    }
-
-    if (path) {
-      const fileContents = readFileSync(path, 'utf8');
-      return admin.credential.cert(JSON.parse(fileContents));
-    }
-
-    throw new Error('Missing Firebase service account configuration');
   }
 }

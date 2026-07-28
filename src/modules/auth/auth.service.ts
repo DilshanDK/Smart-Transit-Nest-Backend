@@ -4,12 +4,14 @@ import {
   UnauthorizedException,
   ForbiddenException,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { getFirebaseAdminApp } from '../../core/utils/firebase-admin';
 
 import { Passenger, PassengerDocument } from './schemas/passenger.schema';
 import { Driver, DriverDocument } from './schemas/driver.schema';
@@ -25,7 +27,7 @@ import {
 import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   constructor(
     @InjectModel(Passenger.name)
     private passengerModel: Model<PassengerDocument>,
@@ -35,6 +37,267 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
+
+  async onModuleInit() {
+    if (process.env.SEED_DEMO_ACCOUNTS === 'true') {
+      await this.seedDemoAccounts();
+    }
+  }
+
+  private async seedDemoAccounts() {
+    const passwordHash = await bcrypt.hash('password123', 12);
+
+    // 1. Seed/Reset Passenger
+    const passengerEmail = 'passenger@test.com';
+    await this.passengerModel.deleteOne({ email: passengerEmail });
+    await this.passengerModel.create({
+      _id: new Types.ObjectId('6480f8a1e12a459012345677'),
+      email: passengerEmail,
+      fullName: 'Test Passenger',
+      passwordHash,
+      walletBalance: 1000.0,
+    });
+    console.log('Seeded/Reset demo passenger: passenger@test.com / password123 (ID: 6480f8a1e12a459012345677)');
+
+    // 2. Seed/Reset Company
+    const companyEmail = 'company@test.com';
+    await this.busCompanyModel.deleteOne({ email: companyEmail });
+    const company = await this.busCompanyModel.create({
+      _id: new Types.ObjectId('6480f8a1e12a459012345678'),
+      companyName: 'Express Transit Ltd',
+      email: companyEmail,
+      passwordHash,
+      isOnboarded: true,
+    });
+    console.log('Seeded/Reset demo company: company@test.com / password123 (ID: 6480f8a1e12a459012345678)');
+
+    // 3. Seed/Reset Driver under Company
+    const driverEmail = 'driver@test.com';
+    await this.driverModel.deleteOne({ email: driverEmail });
+    await this.driverModel.create({
+      _id: new Types.ObjectId('6480f8a1e12a459012345679'),
+      fullName: 'David Driver',
+      email: driverEmail,
+      passwordHash,
+      companyId: company._id,
+      licenseNumber: 'DL-998822A',
+      isOnShift: false,
+      currentBusRegistration: 'WP-GA-9021',
+    });
+    console.log('Seeded/Reset demo driver: driver@test.com / password123 (ID: 6480f8a1e12a459012345679)');
+  }
+
+  async login(dto: LoginPassengerDto) {
+    const email = dto.email.toLowerCase();
+
+    // 1. Try Bus Company first
+    const company = await this.busCompanyModel.findOne({ email });
+    if (company) {
+      const isPasswordValid = await bcrypt.compare(dto.password, company.passwordHash);
+      if (isPasswordValid) {
+        const tokens = await this.generateTokens(company._id.toString(), 'company');
+        await this.updateRefreshTokenHash(company._id.toString(), tokens.refreshToken, 'company');
+        return {
+          role: 'company',
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          user: {
+            id: company._id,
+            companyId: company.companyId,
+            email: company.email,
+            companyName: company.companyName,
+            isOnboarded: company.isOnboarded,
+          },
+        };
+      }
+    }
+
+    // 2. Try Passenger next
+    const passenger = await this.passengerModel.findOne({ email });
+    if (passenger) {
+      const isPasswordValid = await bcrypt.compare(dto.password, passenger.passwordHash);
+      if (isPasswordValid) {
+        const tokens = await this.generateTokens(passenger._id.toString(), 'passenger');
+        await this.updateRefreshTokenHash(passenger._id.toString(), tokens.refreshToken, 'passenger');
+        return {
+          role: 'passenger',
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          user: {
+            id: passenger._id,
+            passengerId: passenger.passengerId,
+            email: passenger.email,
+            fullName: passenger.fullName,
+            walletBalance: parseFloat(passenger.walletBalance?.toString() || '0'),
+          },
+        };
+      }
+    }
+
+    // 3. Try Driver next
+    const driver = await this.driverModel.findOne({ email });
+    if (driver) {
+      const isPasswordValid = await bcrypt.compare(dto.password, driver.passwordHash);
+      if (isPasswordValid) {
+        const tokens = await this.generateTokens(driver._id.toString(), 'driver');
+        await this.updateRefreshTokenHash(driver._id.toString(), tokens.refreshToken, 'driver');
+        return {
+          role: 'driver',
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          user: {
+            id: driver._id,
+            driverId: driver.driverId,
+            email: driver.email,
+            fullName: driver.fullName,
+            isOnShift: driver.isOnShift,
+            currentBusRegistration: driver.currentBusRegistration,
+          },
+        };
+      }
+    }
+
+    throw new UnauthorizedException('Invalid email or password');
+  }
+
+  // ──────────────────────────────────────────────
+  // GOOGLE AUTH
+  // ──────────────────────────────────────────────
+
+  async googleLogin(idToken: string, role: 'passenger' | 'driver' | 'company') {
+    const app = getFirebaseAdminApp(this.configService);
+    let decodedToken;
+    try {
+      decodedToken = await app.auth().verifyIdToken(idToken);
+    } catch (error) {
+      throw new UnauthorizedException('Invalid Google token');
+    }
+
+    const { email, name, uid } = decodedToken;
+    if (!email) {
+      throw new UnauthorizedException('Google account has no email');
+    }
+
+    const model = this.getModelByRole(role);
+    const existingUser = await model.findOne({ email: email.toLowerCase() });
+
+    if (existingUser) {
+      // Link account
+      existingUser.googleId = uid;
+      await existingUser.save();
+
+      const tokens = await this.generateTokens(existingUser._id.toString(), role);
+      await this.updateRefreshTokenHash(existingUser._id.toString(), tokens.refreshToken, role);
+      return this.formatLoginResponse(existingUser, tokens, role);
+    } else {
+      // Create account
+      // Generate a random password since they login with Google
+      const passwordHash = await bcrypt.hash(Math.random().toString(36).slice(-10), 12);
+      let newUserObj: any = {
+        email: email.toLowerCase(),
+        passwordHash,
+        googleId: uid,
+      };
+
+      if (role === 'passenger' || role === 'driver') {
+        newUserObj.fullName = name || 'Google User';
+      }
+      if (role === 'company') {
+        newUserObj.companyName = name || 'Google Company';
+      }
+      if (role === 'driver') {
+        newUserObj.licenseNumber = 'PENDING';
+      }
+
+      const newUser = await model.create(newUserObj);
+
+      const tokens = await this.generateTokens(newUser._id.toString(), role);
+      await this.updateRefreshTokenHash(newUser._id.toString(), tokens.refreshToken, role);
+      return this.formatLoginResponse(newUser, tokens, role);
+    }
+  }
+
+  async googleLoginUnified(idToken: string) {
+    const app = getFirebaseAdminApp(this.configService);
+    let decodedToken;
+    try {
+      decodedToken = await app.auth().verifyIdToken(idToken);
+    } catch (error) {
+      throw new UnauthorizedException('Invalid Google token');
+    }
+
+    const { email, uid } = decodedToken;
+    if (!email) {
+      throw new UnauthorizedException('Google account has no email');
+    }
+
+    const searchEmail = email.toLowerCase();
+
+    // 1. Check Company
+    const companyModel = this.getModelByRole('company');
+    const existingCompany = await companyModel.findOne({ email: searchEmail });
+    if (existingCompany) {
+      existingCompany.googleId = uid;
+      await existingCompany.save();
+      const tokens = await this.generateTokens(existingCompany._id.toString(), 'company');
+      await this.updateRefreshTokenHash(existingCompany._id.toString(), tokens.refreshToken, 'company');
+      return this.formatLoginResponse(existingCompany, tokens, 'company');
+    }
+
+    // 2. Check Passenger
+    const passengerModel = this.getModelByRole('passenger');
+    const existingPassenger = await passengerModel.findOne({ email: searchEmail });
+    if (existingPassenger) {
+      existingPassenger.googleId = uid;
+      await existingPassenger.save();
+      const tokens = await this.generateTokens(existingPassenger._id.toString(), 'passenger');
+      await this.updateRefreshTokenHash(existingPassenger._id.toString(), tokens.refreshToken, 'passenger');
+      return this.formatLoginResponse(existingPassenger, tokens, 'passenger');
+    }
+
+    // 3. Check Driver
+    const driverModel = this.getModelByRole('driver');
+    const existingDriver = await driverModel.findOne({ email: searchEmail });
+    if (existingDriver) {
+      existingDriver.googleId = uid;
+      await existingDriver.save();
+      const tokens = await this.generateTokens(existingDriver._id.toString(), 'driver');
+      await this.updateRefreshTokenHash(existingDriver._id.toString(), tokens.refreshToken, 'driver');
+      return this.formatLoginResponse(existingDriver, tokens, 'driver');
+    }
+
+    // If not found in any collection, prevent login
+    throw new UnauthorizedException('Account not found. Please register first.');
+  }
+
+  private formatLoginResponse(user: any, tokens: any, role: string) {
+    let userResponse: any = {
+      id: user._id,
+      email: user.email,
+    };
+
+    if (role === 'passenger') {
+      userResponse.passengerId = user.passengerId;
+      userResponse.fullName = user.fullName;
+      userResponse.walletBalance = parseFloat(user.walletBalance?.toString() || '0');
+    } else if (role === 'driver') {
+      userResponse.driverId = user.driverId;
+      userResponse.fullName = user.fullName;
+      userResponse.isOnShift = user.isOnShift;
+      userResponse.currentBusRegistration = user.currentBusRegistration;
+    } else if (role === 'company') {
+      userResponse.companyId = user.companyId;
+      userResponse.companyName = user.companyName;
+      userResponse.isOnboarded = user.isOnboarded;
+    }
+
+    return {
+      role,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: userResponse,
+    };
+  }
 
   // ──────────────────────────────────────────────
   // PASSENGER AUTH
