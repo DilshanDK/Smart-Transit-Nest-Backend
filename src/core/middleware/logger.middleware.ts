@@ -30,10 +30,14 @@ export class LoggerMiddleware implements NestMiddleware {
         this.logger.debug(`🔍 Query: ${JSON.stringify(request.query)}`);
       }
       if (request.body && Object.keys(request.body).length > 0) {
-        // Create a copy and obfuscate passwords
+        // Create a copy and obfuscate sensitive tokens & credentials
         const bodyToLog = { ...request.body };
         if (bodyToLog.password) bodyToLog.password = '***';
         if (bodyToLog.passwordHash) bodyToLog.passwordHash = '***';
+        if (bodyToLog.idToken) bodyToLog.idToken = '[REDACTED_TOKEN]';
+        if (bodyToLog.accessToken) bodyToLog.accessToken = '[REDACTED_TOKEN]';
+        if (bodyToLog.refreshToken) bodyToLog.refreshToken = '[REDACTED_TOKEN]';
+        if (bodyToLog.token) bodyToLog.token = '[REDACTED_TOKEN]';
         this.logger.debug(`📦 Body: ${JSON.stringify(bodyToLog)}`);
       }
     });

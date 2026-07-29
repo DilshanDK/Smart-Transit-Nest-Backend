@@ -11,6 +11,7 @@ import { Model, Types } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 import { getFirebaseAdminApp } from '../../core/utils/firebase-admin';
 
 import { Passenger, PassengerDocument } from './schemas/passenger.schema';
@@ -164,19 +165,35 @@ export class AuthService implements OnModuleInit {
   // GOOGLE AUTH
   // ──────────────────────────────────────────────
 
-  async googleLogin(idToken: string, role: 'passenger' | 'driver' | 'company') {
-    const app = getFirebaseAdminApp(this.configService);
-    let decodedToken;
+  private async verifyAnyGoogleIdToken(idToken: string): Promise<{ email: string; name?: string; uid: string }> {
+    // 1. Try Firebase Admin SDK verification (for Next.js Web Firebase Popup tokens)
     try {
-      decodedToken = await app.auth().verifyIdToken(idToken);
-    } catch (error) {
-      throw new UnauthorizedException('Invalid Google token');
-    }
+      const app = getFirebaseAdminApp(this.configService);
+      const decoded = await app.auth().verifyIdToken(idToken);
+      if (decoded.email) {
+        return { email: decoded.email, name: decoded.name, uid: decoded.uid };
+      }
+    } catch (_) {}
 
-    const { email, name, uid } = decodedToken;
-    if (!email) {
-      throw new UnauthorizedException('Google account has no email');
-    }
+    // 2. Fallback to google-auth-library (for Flutter Native Google Sign-In tokens)
+    try {
+      const oauthClient = new OAuth2Client();
+      const ticket = await oauthClient.verifyIdToken({ idToken });
+      const payload = ticket.getPayload();
+      if (payload && payload.email) {
+        return {
+          email: payload.email,
+          name: payload.name || payload.given_name || payload.email.split('@')[0],
+          uid: payload.sub,
+        };
+      }
+    } catch (_) {}
+
+    throw new UnauthorizedException('Invalid Google token');
+  }
+
+  async googleLogin(idToken: string, role: 'passenger' | 'driver' | 'company') {
+    const { email, name, uid } = await this.verifyAnyGoogleIdToken(idToken);
 
     const model = this.getModelByRole(role);
     const existingUser = await model.findOne({ email: email.toLowerCase() });
@@ -190,24 +207,27 @@ export class AuthService implements OnModuleInit {
       await this.updateRefreshTokenHash(existingUser._id.toString(), tokens.refreshToken, role);
       return this.formatLoginResponse(existingUser, tokens, role);
     } else {
-      // Create account
+      // Security Enforcement: Block un-registered emails from logging in as Driver or Company
+      if (role === 'driver') {
+        throw new UnauthorizedException(
+          'No registered driver account found for this email. Please contact your bus company administrator.',
+        );
+      }
+      if (role === 'company') {
+        throw new UnauthorizedException(
+          'No registered company account found for this email. Please register your company first.',
+        );
+      }
+
+      // Create account (Only Passengers are permitted self-registration via Google)
       // Generate a random password since they login with Google
       const passwordHash = await bcrypt.hash(Math.random().toString(36).slice(-10), 12);
-      let newUserObj: any = {
+      const newUserObj: any = {
         email: email.toLowerCase(),
         passwordHash,
         googleId: uid,
+        fullName: name || 'Google Passenger',
       };
-
-      if (role === 'passenger' || role === 'driver') {
-        newUserObj.fullName = name || 'Google User';
-      }
-      if (role === 'company') {
-        newUserObj.companyName = name || 'Google Company';
-      }
-      if (role === 'driver') {
-        newUserObj.licenseNumber = 'PENDING';
-      }
 
       const newUser = await model.create(newUserObj);
 
@@ -218,15 +238,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async googleLoginUnified(idToken: string) {
-    const app = getFirebaseAdminApp(this.configService);
-    let decodedToken;
-    try {
-      decodedToken = await app.auth().verifyIdToken(idToken);
-    } catch (error) {
-      throw new UnauthorizedException('Invalid Google token');
-    }
-
-    const { email, uid } = decodedToken;
+    const { email, uid } = await this.verifyAnyGoogleIdToken(idToken);
     if (!email) {
       throw new UnauthorizedException('Google account has no email');
     }
@@ -467,16 +479,42 @@ export class AuthService implements OnModuleInit {
   // ──────────────────────────────────────────────
 
   async verifyDriver(dto: LoginDriverDto) {
-    const driver = await this.driverModel.findById(dto.driverId);
-    if (!driver) {
-      throw new NotFoundException('Driver not found');
+    const input = (dto.loginInput || dto.driverId || '').trim();
+    if (!input) {
+      throw new UnauthorizedException('Driver ID or Email is required');
     }
 
-    // In the future, verify bus registration against company fleet records
-    // For now, we set the bus registration and mark the driver as on-shift
-    driver.isOnShift = true;
-    driver.currentBusRegistration = dto.busRegistration;
-    await driver.save();
+    let driver: DriverDocument | null = null;
+
+    if (Types.ObjectId.isValid(input)) {
+      driver = await this.driverModel.findById(input);
+    }
+    if (!driver) {
+      driver = await this.driverModel.findOne({
+        $or: [
+          { driverId: input },
+          { email: input.toLowerCase() },
+          { licenseNumber: input },
+        ],
+      });
+    }
+
+    if (!driver) {
+      throw new NotFoundException('Driver not found. Please verify your Driver ID or Email.');
+    }
+
+    // Password Validation
+    if (dto.password) {
+      const isPasswordValid = await bcrypt.compare(dto.password, driver.passwordHash);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid Driver ID/Email or Password');
+      }
+    }
+
+    if (dto.busRegistration) {
+      driver.currentBusRegistration = dto.busRegistration;
+      await driver.save();
+    }
 
     const tokens = await this.generateTokens(driver._id.toString(), 'driver');
     await this.updateRefreshTokenHash(
