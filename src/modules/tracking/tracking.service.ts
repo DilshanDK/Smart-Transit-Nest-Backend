@@ -42,6 +42,21 @@ export class TrackingService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
+    const disableRedis = this.configService.get<string>('DISABLE_REDIS') === 'true';
+    if (disableRedis) {
+      this.logger.log('Redis integration is disabled (using in-memory telemetry tracking).');
+      
+      this.flushTimer = setInterval(() => {
+        this.flushToMongo().catch((err) => {
+          this.logger.error(
+            'Failed to flush live bus positions during interval',
+            String(err),
+          );
+        });
+      }, 30000);
+      return;
+    }
+
     const redisUrl =
       this.configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
 
@@ -55,7 +70,7 @@ export class TrackingService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    // Handle connection errors silently to avoid crash or spamming standard error
+    // Handle connection errors silently to avoid spamming standard error
     this.redis.on('error', (err) => {
       this.logger.debug(`Redis offline: ${err.message}`);
     });

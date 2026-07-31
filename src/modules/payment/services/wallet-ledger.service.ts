@@ -21,6 +21,7 @@ import {
   BusCompany,
   BusCompanyDocument,
 } from '../../auth/schemas/bus-company.schema';
+import { NotificationsGateway } from '../../notifications/notifications.gateway';
 
 @Injectable()
 export class WalletLedgerService {
@@ -33,6 +34,7 @@ export class WalletLedgerService {
     private readonly passengerModel: Model<PassengerDocument>,
     @InjectModel(BusCompany.name)
     private readonly busCompanyModel: Model<BusCompanyDocument>,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   /**
@@ -44,7 +46,7 @@ export class WalletLedgerService {
     companyId: string | Types.ObjectId,
     journeyId: string | Types.ObjectId,
     session: ClientSession,
-  ): Promise<TransactionDocument> {
+  ): Promise<{ transaction: TransactionDocument; remainingBalance: number }> {
     // 1. Get passenger and check balance
     const passenger = await this.passengerModel
       .findById(passengerId)
@@ -64,6 +66,8 @@ export class WalletLedgerService {
         HttpStatus.PAYMENT_REQUIRED,
       );
     }
+
+    const remainingBalance = currentBalance - amount;
 
     // 2. Deduct fare from passenger
     await this.passengerModel.findByIdAndUpdate(
@@ -90,7 +94,8 @@ export class WalletLedgerService {
       journeyId: new Types.ObjectId(journeyId),
     });
 
-    return tx.save({ session });
+    const transaction = await tx.save({ session });
+    return { transaction, remainingBalance };
   }
 
   /**
@@ -152,6 +157,13 @@ export class WalletLedgerService {
       await session.commitTransaction();
       this.logger.log(
         `Credited LKR ${amount} to passenger ${passengerId.toString()}`,
+      );
+
+      // Emit real-time WebSocket update to the passenger's app
+      this.notificationsGateway.emitToUser(
+        passengerId.toString(),
+        'wallet_updated',
+        { balance: passenger.walletBalance },
       );
     } catch (error) {
       await session.abortTransaction();

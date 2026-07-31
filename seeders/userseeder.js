@@ -34,9 +34,9 @@ async function seed() {
     console.log(`🔐 Hashing password "${testPassword}"...`);
     const passwordHash = await bcrypt.hash(testPassword, 12);
 
-    const passengerEmail = 'passenger@test.com';
-    const companyEmail = 'company@test.com';
-    const driverEmail = 'driver@test.com';
+    const passengerEmail = 'dilshanhp31@gmail.com';
+    const companyEmail = 'dilshandk84@gmail.com';
+    const driverEmail = 'dilshankumara255@gmail.com';
 
     // --- 1. SEED PASSENGER ---
     console.log(`🧹 Cleaning existing test passenger (${passengerEmail})...`);

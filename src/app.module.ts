@@ -12,6 +12,7 @@ import { DriverModule } from './modules/driver/driver.module';
 import { JourneyModule } from './modules/journey/journey.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
 import { CompanyModule } from './modules/company/company.module';
+import { RouteModule } from './modules/route/route.module';
 import { LoggerMiddleware } from './core/middleware/logger.middleware';
 
 @Module({
@@ -41,6 +42,7 @@ import { LoggerMiddleware } from './core/middleware/logger.middleware';
     JourneyModule,
     TrackingModule,
     CompanyModule,
+    RouteModule,
   ],
   controllers: [AppController],
   providers: [

@@ -32,6 +32,9 @@ export class BusCompany {
 
   @Prop({ default: false })
   isOnboarded: boolean;
+
+  @Prop({ default: null })
+  googleId: string;
 }
 
 export const BusCompanySchema = SchemaFactory.createForClass(BusCompany);

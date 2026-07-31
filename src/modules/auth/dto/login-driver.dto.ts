@@ -1,11 +1,19 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
 export class LoginDriverDto {
   @IsString()
   @IsNotEmpty()
-  driverId: string;
+  loginInput: string;
 
   @IsString()
   @IsNotEmpty()
-  busRegistration: string;
+  password: string;
+
+  @IsString()
+  @IsOptional()
+  driverId?: string;
+
+  @IsString()
+  @IsOptional()
+  busRegistration?: string;
 }
