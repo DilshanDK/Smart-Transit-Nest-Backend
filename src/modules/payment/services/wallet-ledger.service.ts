@@ -21,6 +21,7 @@ import {
   BusCompany,
   BusCompanyDocument,
 } from '../../auth/schemas/bus-company.schema';
+import { NotificationsGateway } from '../../notifications/notifications.gateway';
 
 @Injectable()
 export class WalletLedgerService {
@@ -33,6 +34,7 @@ export class WalletLedgerService {
     private readonly passengerModel: Model<PassengerDocument>,
     @InjectModel(BusCompany.name)
     private readonly busCompanyModel: Model<BusCompanyDocument>,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   /**
@@ -155,6 +157,13 @@ export class WalletLedgerService {
       await session.commitTransaction();
       this.logger.log(
         `Credited LKR ${amount} to passenger ${passengerId.toString()}`,
+      );
+
+      // Emit real-time WebSocket update to the passenger's app
+      this.notificationsGateway.emitToUser(
+        passengerId.toString(),
+        'wallet_updated',
+        { balance: passenger.walletBalance },
       );
     } catch (error) {
       await session.abortTransaction();

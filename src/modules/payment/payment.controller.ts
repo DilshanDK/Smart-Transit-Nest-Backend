@@ -40,13 +40,13 @@ export class PaymentController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('passenger')
-  @Post('payments/create-intent')
+  @Post('payment/intent')
   @HttpCode(HttpStatus.OK)
   async createPaymentIntent(@Body() createIntentDto: CreateIntentDto, @Req() req: any) {
     const passengerId = req.user.userId;
     const { amount, currency, metadata } = createIntentDto;
-    const clientSecret = await this.paymentService.createPaymentIntent(amount, currency || 'usd', metadata || {}, passengerId);
-    return { clientSecret };
+    const intent = await this.paymentService.createPaymentIntent(amount, currency || 'usd', metadata || {}, passengerId);
+    return intent;
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

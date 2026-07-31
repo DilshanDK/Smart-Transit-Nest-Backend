@@ -9,5 +9,9 @@ services:
       - "3000:3000"
     env_file:
       - .env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    networks:
+      - smarttransit-network
+
+networks:
+  smarttransit-network:
+    external: true

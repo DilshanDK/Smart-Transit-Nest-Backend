@@ -45,7 +45,7 @@ export class AuthController {
   @Post('passenger/login')
   @HttpCode(HttpStatus.OK)
   async loginPassenger(@Body() dto: LoginPassengerDto) {
-    return this.authService.loginPassenger(dto);
+    return this.authService.login(dto);
   }
 
   @Post('passenger/google')
