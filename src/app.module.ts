@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
@@ -12,6 +12,8 @@ import { DriverModule } from './modules/driver/driver.module';
 import { JourneyModule } from './modules/journey/journey.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
 import { CompanyModule } from './modules/company/company.module';
+import { RouteModule } from './modules/route/route.module';
+import { LoggerMiddleware } from './core/middleware/logger.middleware';
 
 @Module({
   imports: [
@@ -40,6 +42,7 @@ import { CompanyModule } from './modules/company/company.module';
     JourneyModule,
     TrackingModule,
     CompanyModule,
+    RouteModule,
   ],
   controllers: [AppController],
   providers: [
@@ -50,6 +53,12 @@ import { CompanyModule } from './modules/company/company.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(LoggerMiddleware)
+      .forRoutes('*');
+  }
+}
 
 

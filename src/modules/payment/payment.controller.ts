@@ -8,6 +8,8 @@ import {
   Headers,
   BadRequestException,
   Logger,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../core/guards/jwt-auth.guard';
@@ -39,9 +41,12 @@ export class PaymentController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('passenger')
   @Post('payment/intent')
-  async createIntent(@Body() dto: CreateIntentDto, @Req() req: any) {
+  @HttpCode(HttpStatus.OK)
+  async createPaymentIntent(@Body() createIntentDto: CreateIntentDto, @Req() req: any) {
     const passengerId = req.user.userId;
-    return this.stripeService.createPaymentIntent(dto.amount, passengerId);
+    const { amount, currency, metadata } = createIntentDto;
+    const intent = await this.paymentService.createPaymentIntent(amount, currency || 'usd', metadata || {}, passengerId);
+    return intent;
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

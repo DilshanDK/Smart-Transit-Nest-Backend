@@ -77,6 +77,10 @@ jobs:
           script: |
             cd /home/ubuntu/Projects/smart-transit/nest-backend
             
+            # Ensure the custom network exists and connect Redis container to it
+            docker network create smarttransit-network || true
+            docker network connect smarttransit-network core-redis || true
+            
             # Write backend_env secrets to .env
             echo "${{ secrets.BACKEND_ENV }}" > .env
             

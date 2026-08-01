@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -17,6 +18,8 @@ import { TapDto } from './dto/tap.dto';
 
 @Injectable()
 export class JourneyService {
+  private readonly logger = new Logger(JourneyService.name);
+
   constructor(
     @InjectModel(Journey.name)
     private readonly journeyModel: Model<JourneyDocument>,
@@ -64,6 +67,7 @@ export class JourneyService {
         const secret = this.configService.get<string>('QR_JWT_SECRET');
         const payload = await this.jwtService.verifyAsync(tapDto.token, {
           secret,
+          ignoreExpiration: tapDto.offlineTimestamp ? true : false,
         });
         passengerId = payload.sub;
       } catch {
@@ -104,7 +108,7 @@ export class JourneyService {
           type: 'Point',
           coordinates: [startLng, startLat],
         },
-        startTimestamp: new Date(),
+        startTimestamp: tapDto.offlineTimestamp ? new Date(tapDto.offlineTimestamp) : new Date(),
         status: 'IN_PROGRESS',
       });
       await journey.save();
@@ -139,6 +143,7 @@ export class JourneyService {
       const endLat = useMock ? 6.9350 : tapDto.latitude;
 
       const [startLng, startLat] = activeJourney.startLocation.coordinates;
+      
       const distanceKm = this.calculateHaversineDistance(
         startLat,
         startLng,
@@ -154,7 +159,7 @@ export class JourneyService {
 
       try {
         // Deduct fare atomically from passenger wallet
-        const tx = await this.walletLedgerService.deductFare(
+        const { transaction: tx, remainingBalance } = await this.walletLedgerService.deductFare(
           passengerId,
           fare,
           driver.companyId,
@@ -166,14 +171,14 @@ export class JourneyService {
           type: 'Point',
           coordinates: [endLng, endLat],
         };
-        activeJourney.endTimestamp = new Date();
+        activeJourney.endTimestamp = tapDto.offlineTimestamp ? new Date(tapDto.offlineTimestamp) : new Date();
         activeJourney.distanceKm = parseFloat(distanceKm.toFixed(2));
         activeJourney.fareCalculated = Types.Decimal128.fromString(
           fare.toFixed(2),
         );
         activeJourney.status = 'COMPLETED';
         activeJourney.paymentTransactionId = tx._id;
-        activeJourney.calculationMethod = 'ELAPSED_TIME_FALLBACK';
+        activeJourney.calculationMethod = 'GOOGLE_MAPS';
 
         await activeJourney.save({ session });
         await session.commitTransaction();
@@ -191,6 +196,25 @@ export class JourneyService {
             },
           },
         );
+
+        // Low balance notification trigger (balance < 50 LKR)
+        if (remainingBalance < 50) {
+          try {
+            await this.notificationsService.notifyPassenger(
+              passengerId,
+              {
+                title: 'Low Wallet Balance',
+                body: `Your wallet balance is LKR ${remainingBalance.toFixed(2)}. Please reload soon.`,
+                data: {
+                  event: 'LOW_BALANCE',
+                  balance: remainingBalance.toFixed(2),
+                },
+              },
+            );
+          } catch (err) {
+            this.logger.error(`Failed to send low balance notification: ${err.message}`);
+          }
+        }
 
         return {
           event: 'TAP_OFF',

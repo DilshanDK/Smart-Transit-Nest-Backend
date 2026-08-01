@@ -23,7 +23,7 @@ async function bootstrap() {
   // Enable CORS with restricted origin list
   const allowedOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')
-    : ['http://localhost:3000', 'http://localhost:5000'];
+    : ['http://localhost:4001'];
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -47,9 +47,9 @@ async function bootstrap() {
     }),
   );
 
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port);
-  console.log(`🚀 NestJS Backend running at: http://localhost:${port}`);
+  const port = process.env.PORT ?? 4000;
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 NestJS Backend running at: http://localhost:${port} and exposed to local network on IPv4`);
 }
 bootstrap().catch((err) => {
   console.error('Failed to start server', err);

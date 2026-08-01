@@ -29,7 +29,6 @@ export class StripeConnectService {
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents (or lowest denomination)
         currency: 'lkr',
-        customer: customerId,
         automatic_payment_methods: {
           enabled: true,
         },
