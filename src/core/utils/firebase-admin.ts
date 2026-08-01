@@ -17,7 +17,9 @@ function resolveCredential(configService: ConfigService): admin.credential.Crede
   const privateKey = configService.get<string>('FIREBASE_PRIVATE_KEY');
 
   if (projectId && clientEmail && privateKey) {
-    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+    // Strip leading/trailing double quotes if they exist (common Docker Compose env issue)
+    const cleanedKey = privateKey.replace(/^"|"$/g, '');
+    const formattedPrivateKey = cleanedKey.replace(/\\n/g, '\n');
     return admin.credential.cert({
       projectId,
       clientEmail,
