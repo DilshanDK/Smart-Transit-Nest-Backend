@@ -134,6 +134,38 @@ export class CompanyService {
     };
   }
 
+  async assignDriverRouteAndBus(
+    companyId: string,
+    driverId: string,
+    dto: { assignedRouteId: string; currentBusRegistration: string },
+  ) {
+    const driver = await this.driverModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(driverId),
+        companyId: new Types.ObjectId(companyId),
+      },
+      {
+        $set: {
+          assignedRouteId: dto.assignedRouteId,
+          currentBusRegistration: dto.currentBusRegistration,
+        },
+      },
+      { new: true },
+    );
+    if (!driver) {
+      throw new NotFoundException('Driver not found under this company');
+    }
+    return {
+      message: 'Driver route and bus assigned successfully',
+      driver: {
+        id: driver._id,
+        fullName: driver.fullName,
+        assignedRouteId: driver.assignedRouteId,
+        currentBusRegistration: driver.currentBusRegistration,
+      },
+    };
+  }
+
   async getFleet(companyId: string) {
     // Get all drivers of this company who are currently on shift
     const activeDrivers = await this.driverModel.find({
@@ -146,6 +178,7 @@ export class CompanyService {
       busRegistration: d.currentBusRegistration,
       driverName: d.fullName,
       driverId: d._id,
+      assignedRouteId: d.assignedRouteId || '593',
       lastActive: (d as any).updatedAt || new Date(),
     }));
   }
@@ -224,5 +257,76 @@ export class CompanyService {
     });
 
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
+
+  async getDailyRevenueTrend(companyId: string, from?: string, to?: string) {
+    const companyDrivers = await this.driverModel.find({
+      companyId: new Types.ObjectId(companyId),
+    });
+    const driverIds = companyDrivers.map((d) => d._id);
+
+    // Default to last 7 days if from/to not specified
+    const endDate = to ? new Date(to) : new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    const startDate = from ? new Date(from) : new Date();
+    if (!from) {
+      startDate.setDate(startDate.getDate() - 6);
+    }
+    startDate.setHours(0, 0, 0, 0);
+
+    const journeys = await this.journeyModel.find({
+      driverId: { $in: driverIds },
+      status: 'COMPLETED',
+      startTimestamp: { $gte: startDate, $lte: endDate },
+    });
+
+    // Generate date map for all days in range (limit to 31 days max to prevent large arrays)
+    const dayMap = new Map<string, number>();
+    const curr = new Date(startDate);
+    let count = 0;
+    while (curr <= endDate && count < 31) {
+      const key = curr.toISOString().slice(0, 10);
+      dayMap.set(key, 0);
+      curr.setDate(curr.getDate() + 1);
+      count++;
+    }
+
+    journeys.forEach((j) => {
+      if (j.startTimestamp) {
+        const key = j.startTimestamp.toISOString().slice(0, 10);
+        const fare = j.fareCalculated
+          ? parseFloat(j.fareCalculated.toString())
+          : 0;
+        if (dayMap.has(key)) {
+          dayMap.set(key, (dayMap.get(key) || 0) + fare);
+        }
+      }
+    });
+
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    return Array.from(dayMap.entries()).map(([dateStr, revenue]) => {
+      const d = new Date(dateStr);
+      const label = `${monthNames[d.getMonth()]} ${d.getDate()}`;
+      return {
+        date: dateStr,
+        day: label,
+        revenue: Math.round(revenue * 100) / 100,
+      };
+    });
   }
 }

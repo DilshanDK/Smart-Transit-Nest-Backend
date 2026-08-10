@@ -151,6 +151,31 @@ export class TrackingService implements OnModuleInit, OnModuleDestroy {
         updatedAt: Date.now(),
       }),
     );
+
+    // Asynchronously upsert LiveTrack in MongoDB for immediate REST query availability
+    try {
+      this.liveTrackModel
+        .findOneAndUpdate(
+          { driverId: new Types.ObjectId(driverId) },
+          {
+            $set: {
+              routeId: payload.routeId,
+              busNumber: payload.busNumber,
+              currentLocation: {
+                type: 'Point',
+                coordinates: [payload.longitude, payload.latitude],
+              },
+              speed: payload.speed,
+              heading: payload.heading,
+              status: payload.status,
+              etaToNextStop: payload.etaToNextStop,
+              lastUpdated: new Date(),
+            },
+          },
+          { upsert: true },
+        )
+        .catch(() => {});
+    } catch (e) {}
   }
 
   async clearDriverLocation(driverId: string) {

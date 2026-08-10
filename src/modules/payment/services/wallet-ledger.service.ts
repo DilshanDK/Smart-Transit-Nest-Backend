@@ -107,70 +107,88 @@ export class WalletLedgerService {
     amount: number,
     stripePaymentIntentId: string,
   ): Promise<void> {
-    const session: ClientSession =
-      await this.transactionModel.db.startSession();
-    session.startTransaction();
+    const maxRetries = 3;
+    let attempt = 0;
 
-    try {
-      // 1. Check if this payment intent was already processed (Idempotency check)
-      const existingTx = await this.transactionModel.findOne(
-        { stripePaymentIntentId },
-        null,
-        { session },
-      );
+    while (attempt < maxRetries) {
+      attempt++;
+      const session: ClientSession = await this.transactionModel.db.startSession();
+      session.startTransaction();
 
-      if (existingTx) {
-        this.logger.warn(
-          `Payment Intent ${stripePaymentIntentId} already processed. Skipping.`,
+      try {
+        // 1. Check if this payment intent was already processed (Idempotency check)
+        const existingTx = await this.transactionModel.findOne(
+          { stripePaymentIntentId },
+          null,
+          { session },
         );
+
+        if (existingTx) {
+          this.logger.warn(
+            `Payment Intent ${stripePaymentIntentId} already processed. Skipping.`,
+          );
+          await session.abortTransaction();
+          await session.endSession();
+          return;
+        }
+
+        // 2. Increment wallet balance
+        // We use $inc to ensure atomic updates at the database level instead of read-modify-write
+        const passenger = await this.passengerModel.findByIdAndUpdate(
+          passengerId,
+          {
+            $inc: { walletBalance: amount },
+          },
+          { new: true, session },
+        );
+
+        if (!passenger) {
+          throw new NotFoundException(
+            `Passenger ${passengerId.toString()} not found`,
+          );
+        }
+
+        // 3. Record the transaction
+        const tx = new this.transactionModel({
+          type: TransactionType.WALLET_TOPUP,
+          amount: Types.Decimal128.fromString(amount.toString()),
+          passengerId: new Types.ObjectId(passengerId),
+          stripePaymentIntentId,
+        });
+
+        await tx.save({ session });
+
+        await session.commitTransaction();
+        this.logger.log(
+          `Credited LKR ${amount} to passenger ${passengerId.toString()} (Attempt ${attempt})`,
+        );
+
+        // Emit real-time WebSocket update to the passenger's app
+        this.notificationsGateway.emitToUser(
+          passengerId.toString(),
+          'wallet_updated',
+          { balance: passenger.walletBalance },
+        );
+
+        await session.endSession();
+        return; // Success, exit
+      } catch (error) {
         await session.abortTransaction();
         await session.endSession();
-        return;
+
+        const isWriteConflict = 
+          error.code === 112 || 
+          error.message?.includes('WriteConflict') || 
+          error.errorLabels?.includes('TransientTransactionError');
+
+        if (isWriteConflict && attempt < maxRetries) {
+          this.logger.warn(`Write conflict during wallet credit (attempt ${attempt} of ${maxRetries}). Retrying in 100ms...`);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        } else {
+          this.logger.error(`Failed to credit wallet from top up (Attempt ${attempt}/${maxRetries})`, error);
+          throw new InternalServerErrorException('Wallet credit failed');
+        }
       }
-
-      // 2. Increment wallet balance
-      // We use $inc to ensure atomic updates at the database level instead of read-modify-write
-      const passenger = await this.passengerModel.findByIdAndUpdate(
-        passengerId,
-        {
-          $inc: { walletBalance: amount },
-        },
-        { new: true, session },
-      );
-
-      if (!passenger) {
-        throw new NotFoundException(
-          `Passenger ${passengerId.toString()} not found`,
-        );
-      }
-
-      // 3. Record the transaction
-      const tx = new this.transactionModel({
-        type: TransactionType.WALLET_TOPUP,
-        amount: Types.Decimal128.fromString(amount.toString()),
-        passengerId: new Types.ObjectId(passengerId),
-        stripePaymentIntentId,
-      });
-
-      await tx.save({ session });
-
-      await session.commitTransaction();
-      this.logger.log(
-        `Credited LKR ${amount} to passenger ${passengerId.toString()}`,
-      );
-
-      // Emit real-time WebSocket update to the passenger's app
-      this.notificationsGateway.emitToUser(
-        passengerId.toString(),
-        'wallet_updated',
-        { balance: passenger.walletBalance },
-      );
-    } catch (error) {
-      await session.abortTransaction();
-      this.logger.error('Failed to credit wallet from top up', error);
-      throw new InternalServerErrorException('Wallet credit failed');
-    } finally {
-      await session.endSession();
     }
   }
 

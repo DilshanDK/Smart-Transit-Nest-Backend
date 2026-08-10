@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Req, UseGuards, Query, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, UseGuards, Query, Res, Param } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../core/guards/jwt-auth.guard';
 import { RolesGuard } from '../../core/guards/roles.guard';
@@ -42,6 +42,20 @@ export class CompanyController {
     return this.companyService.createDriver(companyId, dto);
   }
 
+  @Post('drivers/:driverId/assign')
+  async assignDriver(
+    @Req() req: any,
+    @Param('driverId') driverId: string,
+    @Body()
+    dto: {
+      assignedRouteId: string;
+      currentBusRegistration: string;
+    },
+  ) {
+    const companyId = req.user.userId;
+    return this.companyService.assignDriverRouteAndBus(companyId, driverId, dto);
+  }
+
   @Get('fleet')
   async getFleet(@Req() req: any) {
     const companyId = req.user.userId;
@@ -52,6 +66,16 @@ export class CompanyController {
   async getRevenueByRoute(@Req() req: any) {
     const companyId = req.user.userId;
     return this.companyService.getRevenueByRoute(companyId);
+  }
+
+  @Get('reports/daily-trend')
+  async getDailyRevenueTrend(
+    @Req() req: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const companyId = req.user.userId;
+    return this.companyService.getDailyRevenueTrend(companyId, from, to);
   }
 
   @Get('reports/export')

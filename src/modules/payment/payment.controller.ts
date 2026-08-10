@@ -39,7 +39,7 @@ export class PaymentController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('passenger')
+  @Roles('passenger', 'company')
   @Post('payment/intent')
   @HttpCode(HttpStatus.OK)
   async createPaymentIntent(@Body() createIntentDto: CreateIntentDto, @Req() req: any) {

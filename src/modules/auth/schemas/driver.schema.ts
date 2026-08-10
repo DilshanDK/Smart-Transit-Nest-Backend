@@ -37,6 +37,9 @@ export class Driver {
   currentBusRegistration: string;
 
   @Prop({ default: null })
+  assignedRouteId: string;
+
+  @Prop({ default: null })
   refreshTokenHash: string;
 
   @Prop({ default: null })
