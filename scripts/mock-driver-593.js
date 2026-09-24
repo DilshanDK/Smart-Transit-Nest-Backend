@@ -2,13 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const io = require('socket.io-client');
 
-const BASE_URL = 'http://localhost:4000';
+const isHosted = process.argv.includes('--hosted') || process.argv.includes('--prod');
+const BASE_URL = isHosted
+  ? 'https://api.smart.transit.dilshandk.dev'
+  : (process.env.BASE_URL || 'http://localhost:4000');
 const ROUTE_ID = '593';
 const BUS_NUMBER = 'WP-GA-9021';
 const DRIVER_ID = '6480f8a1e12a459012345679';
 
-// Helper for HTTP requests using fetch
-async function apiCall(method, endpoint, body = null, token = null) {
+// Helper for HTTP requests using fetch with automatic retry resilience
+async function apiCall(method, endpoint, body = null, token = null, retries = 3) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -23,18 +26,29 @@ async function apiCall(method, endpoint, body = null, token = null) {
     options.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, options);
-  const text = await response.text();
-  try {
-    return {
-      status: response.status,
-      data: JSON.parse(text)
-    };
-  } catch (e) {
-    return {
-      status: response.status,
-      data: text
-    };
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(`${BASE_URL}${endpoint}`, options);
+      const text = await response.text();
+      try {
+        return {
+          status: response.status,
+          data: JSON.parse(text)
+        };
+      } catch (e) {
+        return {
+          status: response.status,
+          data: text
+        };
+      }
+    } catch (err) {
+      if (attempt < retries) {
+        console.warn(`⚠️ Request to ${endpoint} failed (${err.code || err.message}). Retrying in 1s (${attempt}/${retries})...`);
+        await new Promise((r) => setTimeout(r, 1000));
+      } else {
+        throw err;
+      }
+    }
   }
 }
 
@@ -51,6 +65,7 @@ function getBearing(lat1, lon1, lat2, lon2) {
 
 async function runMock() {
   console.log('🚍 Starting Mock Driver Telemetry (Matale to Kandy)...');
+  console.log(`🌐 Target Backend: ${BASE_URL} ${isHosted ? '(Hosted Production)' : '(Local Backend)'}`);
 
   // Load high-res route 593 coordinates
   const coordsPath = path.join(__dirname, 'route-593-highres.json');
@@ -89,10 +104,10 @@ async function runMock() {
   }, companyToken);
 
   if (assignmentRes.status !== 200 && assignmentRes.status !== 201) {
-    console.error('❌ Driver assignment failed:', assignmentRes.data);
-    process.exit(1);
+    console.warn(`⚠️ Driver assignment endpoint not available (${assignmentRes.status}). Proceeding with default Route ${ROUTE_ID}...`);
+  } else {
+    console.log('✅ Driver assigned successfully.');
   }
-  console.log('✅ Driver assigned successfully.');
 
   // 3. Authenticate Driver
   console.log('🔑 Logging in as driver...');
