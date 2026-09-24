@@ -3,6 +3,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Route, RouteDocument } from './schemas/route.schema';
 
+import * as fs from 'fs';
+import * as path from 'path';
+
 @Injectable()
 export class RouteService implements OnModuleInit {
   private readonly logger = new Logger(RouteService.name);
@@ -13,90 +16,76 @@ export class RouteService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Seed default routes if collection is empty
+    // Seed default route if collection is empty
     const count = await this.routeModel.countDocuments();
     if (count === 0) {
-      this.logger.log('Route registry is empty. Seeding default routes...');
+      this.logger.log('Route registry is empty. Seeding Route 593 (Kandy - Matale)...');
+      
+      let highResPath: [number, number][] = [];
+      try {
+        const jsonPath = path.join(__dirname, '../../../../scripts/route-593-highres.json');
+        if (fs.existsSync(jsonPath)) {
+          highResPath = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+        }
+      } catch (e) {
+        this.logger.warn('Could not read route-593-highres.json, using built-in fallback coordinates');
+      }
       const defaultRoutes = [
         {
-          routeId: '138',
-          routeName: 'Maharagama - Pettah',
-          startTerminal: 'Maharagama',
-          endTerminal: 'Pettah',
-          baseFare: 50.0,
-          ratePerKm: 10.0,
-          stops: [
-            { name: 'Maharagama Terminal', distanceFromStart: 0, location: { type: 'Point', coordinates: [79.9238, 6.8488] } },
-            { name: 'Nugegoda Junction', distanceFromStart: 4.8, location: { type: 'Point', coordinates: [79.8974, 6.8649] } },
-            { name: 'Kirulapone', distanceFromStart: 7.2, location: { type: 'Point', coordinates: [79.8789, 6.8778] } },
-            { name: 'Tummulla', distanceFromStart: 9.5, location: { type: 'Point', coordinates: [79.8612, 6.9012] } },
-            { name: 'Pettah Central Bus Stand', distanceFromStart: 15.0, location: { type: 'Point', coordinates: [79.8448, 6.9339] } }
-          ],
-          path: {
-            type: 'LineString',
-            coordinates: [
-              [79.9238, 6.8488],
-              [79.8974, 6.8649],
-              [79.8789, 6.8778],
-              [79.8612, 6.9012],
-              [79.8448, 6.9339]
-            ]
-          }
-        },
-        {
-          routeId: '120',
-          routeName: 'Horana - Pettah',
-          startTerminal: 'Horana',
-          endTerminal: 'Pettah',
-          baseFare: 50.0,
-          ratePerKm: 10.0,
-          stops: [
-            { name: 'Horana Terminal', distanceFromStart: 0, location: { type: 'Point', coordinates: [80.0628, 6.7176] } },
-            { name: 'Kahathuduwa', distanceFromStart: 12.3, location: { type: 'Point', coordinates: [80.0054, 6.7924] } },
-            { name: 'Piliyandala', distanceFromStart: 19.5, location: { type: 'Point', coordinates: [79.9228, 6.8016] } },
-            { name: 'Nugegoda', distanceFromStart: 28.1, location: { type: 'Point', coordinates: [79.8974, 6.8649] } },
-            { name: 'Pettah Central Bus Stand', distanceFromStart: 38.5, location: { type: 'Point', coordinates: [79.8448, 6.9339] } }
-          ],
-          path: {
-            type: 'LineString',
-            coordinates: [
-              [80.0628, 6.7176],
-              [80.0054, 6.7924],
-              [79.9228, 6.8016],
-              [79.8974, 6.8649],
-              [79.8448, 6.9339]
-            ]
-          }
-        },
-        {
-          routeId: '177',
-          routeName: 'Kaduwela - Kollupitiya',
-          startTerminal: 'Kaduwela',
-          endTerminal: 'Kollupitiya',
+          routeId: '593',
+          routeName: 'Kandy - Matale',
+          startTerminal: 'Kandy',
+          endTerminal: 'Matale',
           baseFare: 50.0,
           ratePerKm: 12.0,
           stops: [
-            { name: 'Kaduwela Interchange', distanceFromStart: 0, location: { type: 'Point', coordinates: [79.9839, 6.9389] } },
-            { name: 'Malabe', distanceFromStart: 6.2, location: { type: 'Point', coordinates: [79.9616, 6.9042] } },
-            { name: 'Koswatta', distanceFromStart: 9.8, location: { type: 'Point', coordinates: [79.9439, 6.9089] } },
-            { name: 'Battaramulla', distanceFromStart: 11.5, location: { type: 'Point', coordinates: [79.9272, 6.8989] } },
-            { name: 'Kollupitiya Junction', distanceFromStart: 19.8, location: { type: 'Point', coordinates: [79.8492, 6.9119] } }
+            {
+              name: 'Kandy',
+              distanceFromStart: 0.0,
+              location: { type: 'Point', coordinates: [80.6337, 7.2906] },
+            },
+            {
+              name: 'Katugastota',
+              distanceFromStart: 4.0,
+              location: { type: 'Point', coordinates: [80.6225, 7.3248] },
+            },
+            {
+              name: 'Akurana',
+              distanceFromStart: 10.9,
+              location: { type: 'Point', coordinates: [80.6186, 7.3686] },
+            },
+            {
+              name: 'Alawathugoda',
+              distanceFromStart: 16.5,
+              location: { type: 'Point', coordinates: [80.6033, 7.4111] },
+            },
+            {
+              name: 'Alwala (Elwala)',
+              distanceFromStart: 21.7,
+              location: { type: 'Point', coordinates: [80.6094, 7.4475] },
+            },
+            {
+              name: 'Matale',
+              distanceFromStart: 25.7,
+              location: { type: 'Point', coordinates: [80.6234, 7.4675] },
+            },
           ],
           path: {
             type: 'LineString',
-            coordinates: [
-              [79.9839, 6.9389],
-              [79.9616, 6.9042],
-              [79.9439, 6.9089],
-              [79.9272, 6.8989],
-              [79.8492, 6.9119]
-            ]
-          }
-        }
+            coordinates: highResPath.length > 0 ? highResPath : [
+              [80.6337, 7.2906],
+              [80.6225, 7.3248],
+              [80.6186, 7.3686],
+              [80.6033, 7.4111],
+              [80.6094, 7.4475],
+              [80.6234, 7.4675],
+            ],
+          },
+        },
       ];
 
       await this.routeModel.insertMany(defaultRoutes);
-      this.logger.log('Default routes successfully seeded.');
+      this.logger.log('Route 593 (Kandy - Matale) successfully seeded.');
     }
   }
 

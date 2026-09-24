@@ -2,21 +2,26 @@ const http = require('http');
 const io = require('socket.io-client');
 
 const BASE_URL = 'http://localhost:4000';
-const ROUTE_ID = '138';
-const BUS_NUMBER = 'WP-GA-9021';
+const ROUTE_ID = '593';
+const BUS_NUMBER = 'CP-NA-5930';
 const DRIVER_ID = '6a2ae7021b458c1812eb89d3';
 
-// Coordinates along Route 138 (Maharagama to Pettah)
+// Coordinates along Route 593 (Kandy to Matale via A9 Highway)
 const COORDINATES = [
-  { lat: 6.8512, lng: 79.9212, speed: 0, heading: 0, status: 'IDLE', label: 'Maharagama Terminal' },
-  { lat: 6.8620, lng: 79.9100, speed: 40, heading: 305, status: 'ACTIVE', label: 'Near Wattegedara' },
-  { lat: 6.8748, lng: 79.8920, speed: 45, heading: 310, status: 'ACTIVE', label: 'Nugegoda Junction' },
-  { lat: 6.8833, lng: 79.8833, speed: 20, heading: 315, status: 'ACTIVE', label: 'Kirulapone' },
-  { lat: 6.8920, lng: 79.8720, speed: 50, heading: 320, status: 'ACTIVE', label: 'Havelock Town' },
-  { lat: 6.9015, lng: 79.8615, speed: 30, heading: 330, status: 'ACTIVE', label: 'Tummulla' },
-  { lat: 6.9120, lng: 79.8580, speed: 35, heading: 345, status: 'ACTIVE', label: 'Kollupitiya' },
-  { lat: 6.9240, lng: 79.8550, speed: 25, heading: 350, status: 'ACTIVE', label: 'Galle Face' },
-  { lat: 6.9360, lng: 79.8510, speed: 5, heading: 5, status: 'ACTIVE', label: 'Pettah Central Bus Stand' }
+  { lat: 7.2906, lng: 80.6337, speed: 0, heading: 15, status: 'IDLE', label: 'Kandy Goods Shed Terminal' },
+  { lat: 7.2942, lng: 80.6355, speed: 30, heading: 20, status: 'ACTIVE', label: 'Kandy Clock Tower' },
+  { lat: 7.3060, lng: 80.6338, speed: 45, heading: 345, status: 'ACTIVE', label: 'Mahaiyawa' },
+  { lat: 7.3248, lng: 80.6225, speed: 35, heading: 330, status: 'ACTIVE', label: 'Katugastota Bridge' },
+  { lat: 7.3360, lng: 80.6205, speed: 50, heading: 350, status: 'ACTIVE', label: 'Kahalla' },
+  { lat: 7.3485, lng: 80.6190, speed: 50, heading: 355, status: 'ACTIVE', label: 'Ambatenna' },
+  { lat: 7.3686, lng: 80.6186, speed: 40, heading: 350, status: 'ACTIVE', label: 'Akurana Town' },
+  { lat: 7.3820, lng: 80.6145, speed: 48, heading: 335, status: 'ACTIVE', label: 'Dunuvila Junction' },
+  { lat: 7.4010, lng: 80.6062, speed: 42, heading: 325, status: 'ACTIVE', label: 'Balakaduwa Pass' },
+  { lat: 7.4111, lng: 80.6033, speed: 38, heading: 345, status: 'ACTIVE', label: 'Alawathugoda Town' },
+  { lat: 7.4230, lng: 80.6025, speed: 50, heading: 355, status: 'ACTIVE', label: 'Weragama' },
+  { lat: 7.4475, lng: 80.6094, speed: 45, heading: 30, status: 'ACTIVE', label: 'Alwala (Elwala) Junction' },
+  { lat: 7.4580, lng: 80.6160, speed: 40, heading: 40, status: 'ACTIVE', label: 'Mandandawela' },
+  { lat: 7.4675, lng: 80.6234, speed: 10, heading: 45, status: 'ACTIVE', label: 'Matale Main Bus Stand' },
 ];
 
 function makeRequest(method, path, body = null) {

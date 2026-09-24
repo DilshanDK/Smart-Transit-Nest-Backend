@@ -65,7 +65,7 @@ export class TrackingGateway
           return;
         }
         client.data.busNumber = driver.currentBusRegistration ?? null;
-        client.data.routeId = driver.currentBusRegistration ?? null;
+        client.data.routeId = (driver as any).assignedRouteId ?? '593';
       }
     } catch {
       client.disconnect();
@@ -108,7 +108,12 @@ export class TrackingGateway
       throw new WsException('Invalid coordinates');
     }
 
-    const routeId = body.routeId?.trim() || client.data?.routeId;
+    let routeId = body.routeId?.trim() || client.data?.routeId;
+    if (!routeId || routeId.includes('-') || routeId.length > 5) {
+      const driver = await this.driverModel.findById(client.data.userId);
+      routeId = (driver as any)?.assignedRouteId || '593';
+    }
+
     if (!routeId) {
       throw new WsException('routeId is required');
     }
