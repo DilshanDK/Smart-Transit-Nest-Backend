@@ -24,6 +24,8 @@ export class MockDriverService
     private readonly trackingGateway: TrackingGateway,
   ) {}
 
+  private isGoingToKandy = true; // Start from Matale traveling to Kandy (matching user testing)
+
   onApplicationBootstrap() {
     const enableMockTracking = this.configService.get<string>('ENABLE_MOCK_TRACKING');
     const isMockEnabled =
@@ -42,7 +44,8 @@ export class MockDriverService
       '🚍 Starting internal Mock Driver Simulation for Route 593 (Matale to Kandy)...',
     );
 
-    // Reverse coordinates so simulation travels Matale → Kandy
+    // Initial path: Matale → Kandy
+    this.isGoingToKandy = true;
     const reversed = [...route593Coords].reverse();
     this.coordinates = reversed.map(([lng, lat]) => ({ lat, lng }));
     this.currentIndex = 0;
@@ -67,9 +70,20 @@ export class MockDriverService
     if (!this.coordinates.length) return;
 
     if (this.currentIndex >= this.coordinates.length) {
-      this.logger.log(
-        '🔄 Mock bus reached destination. Restarting Route 593 simulation from Matale...',
-      );
+      // Toggle direction for realistic round-trip transit operation
+      this.isGoingToKandy = !this.isGoingToKandy;
+      if (this.isGoingToKandy) {
+        this.logger.log(
+          '🔄 Mock bus reached Matale terminal. Turning around: Route 593 towards Kandy...',
+        );
+        const reversed = [...route593Coords].reverse();
+        this.coordinates = reversed.map(([lng, lat]) => ({ lat, lng }));
+      } else {
+        this.logger.log(
+          '🔄 Mock bus reached Kandy terminal. Turning around: Route 593 towards Matale...',
+        );
+        this.coordinates = route593Coords.map(([lng, lat]) => ({ lat, lng }));
+      }
       this.currentIndex = 0;
     }
 
@@ -84,6 +98,10 @@ export class MockDriverService
     );
     const speed = 32 + Math.random() * 8; // 32 - 40 km/h realistic driving speed
 
+    const direction = this.isGoingToKandy ? 'TO_KANDY' : 'TO_MATALE';
+    const origin = this.isGoingToKandy ? 'Matale' : 'Kandy';
+    const destination = this.isGoingToKandy ? 'Kandy' : 'Matale';
+
     const payload = {
       driverId: '6480f8a1e12a459012345679',
       routeId: '593',
@@ -93,6 +111,9 @@ export class MockDriverService
       speed: Number(speed.toFixed(1)),
       heading: Number(heading.toFixed(1)),
       status: 'ACTIVE',
+      direction,
+      origin,
+      destination,
       etaToNextStop: null,
       updatedAt: new Date().toISOString(),
     };

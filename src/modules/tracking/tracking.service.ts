@@ -18,6 +18,9 @@ interface LiveBusUpdate {
   speed: number;
   heading: number;
   status: string;
+  direction?: string;
+  origin?: string;
+  destination?: string;
   etaToNextStop: number | null;
 }
 
@@ -129,6 +132,9 @@ export class TrackingService implements OnModuleInit, OnModuleDestroy {
             speed: payload.speed,
             heading: payload.heading,
             status: payload.status,
+            direction: payload.direction || 'FORWARD',
+            origin: payload.origin || null,
+            destination: payload.destination || null,
             etaToNextStop: payload.etaToNextStop,
             updatedAt: Date.now(),
           }),
@@ -152,6 +158,9 @@ export class TrackingService implements OnModuleInit, OnModuleDestroy {
         speed: payload.speed,
         heading: payload.heading,
         status: payload.status,
+        direction: payload.direction || 'FORWARD',
+        origin: payload.origin || null,
+        destination: payload.destination || null,
         etaToNextStop: payload.etaToNextStop,
         updatedAt: Date.now(),
       }),
@@ -173,6 +182,9 @@ export class TrackingService implements OnModuleInit, OnModuleDestroy {
               speed: payload.speed,
               heading: payload.heading,
               status: payload.status,
+              direction: payload.direction || 'FORWARD',
+              origin: payload.origin || null,
+              destination: payload.destination || null,
               etaToNextStop: payload.etaToNextStop,
               lastUpdated: new Date(),
             },

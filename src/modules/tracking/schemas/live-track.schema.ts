@@ -48,6 +48,15 @@ export class LiveTrack {
   @Prop({ type: Number, default: null })
   etaToNextStop: number | null;
 
+  @Prop({ type: String, default: 'FORWARD' })
+  direction: string;
+
+  @Prop({ type: String, default: null })
+  origin: string | null;
+
+  @Prop({ type: String, default: null })
+  destination: string | null;
+
   @Prop({ default: Date.now })
   lastUpdated: Date;
 }
